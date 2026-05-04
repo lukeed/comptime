@@ -8,8 +8,7 @@ import { parseSync } from "rolldown/utils";
 const DEFAULT_IMPORT_NAME = "comptime";
 const DEFAULT_TIMEOUT_MS = 10_000;
 const PACKAGE_NAME = "comptime";
-const RUNTIME_ERROR =
-  "comptime() must be replaced by the Vite or Rolldown plugin before runtime";
+const RUNTIME_ERROR = "comptime() must be replaced by the Vite or Rolldown plugin before runtime";
 const RUNTIME_VIRTUAL_ID = "\0comptime:runtime";
 const RUNTIME_VIRTUAL_MODULE = `export function comptime() { throw new Error(${JSON.stringify(RUNTIME_ERROR)}); }\n`;
 const SUPPORTED_EXTENSIONS = new Set([
@@ -60,11 +59,7 @@ export type TransformContext = {
 export type ComptimeCore = {
   resolveId(id: string): string | null;
   load(id: string): string | null;
-  transform(
-    code: string,
-    id: string,
-    context?: TransformContext,
-  ): Promise<TransformResult | null>;
+  transform(code: string, id: string, context?: TransformContext): Promise<TransformResult | null>;
   invalidate(id?: string): void;
 };
 
@@ -218,11 +213,7 @@ export function createCore(input: CreateCoreOptions): ComptimeCore {
         return null;
       }
 
-      let imports = collectImportBindings(
-        parseResult.module.staticImports,
-        id,
-        comptimeBindings,
-      );
+      let imports = collectImportBindings(parseResult.module.staticImports, id, comptimeBindings);
       let declarations = collectTopLevelDeclarations(parseResult.program, code);
       let edited = new MagicString(code);
 
@@ -367,10 +358,7 @@ function matchesPattern(value: string, pattern: string): boolean {
   return new RegExp(`^${escaped}$`).test(value);
 }
 
-function collectComptimeBindings(
-  imports: StaticImportLike[],
-  importName: string,
-): Set<string> {
+function collectComptimeBindings(imports: StaticImportLike[], importName: string): Set<string> {
   let names = new Set<string>();
   for (let item of imports) {
     if (item.moduleRequest.value !== PACKAGE_NAME) {
@@ -535,9 +523,7 @@ function getFunctionInfo(
   fn: AstNode,
   code: string,
   id: string,
-):
-  | { valid: true; body: string; bodyNode: AstNode }
-  | { valid: false } {
+): { valid: true; body: string; bodyNode: AstNode } | { valid: false } {
   if (fn.type !== "ArrowFunctionExpression" && fn.type !== "FunctionExpression") {
     return { valid: false };
   }
@@ -577,11 +563,7 @@ function getFunctionInfo(
   };
 }
 
-function createVirtualModule(
-  imports: string[],
-  declarations: string[],
-  body: string,
-): string {
+function createVirtualModule(imports: string[], declarations: string[], body: string): string {
   let parts: string[] = [];
   parts.push(...imports);
   parts.push(...declarations);
@@ -697,11 +679,7 @@ function collectIdentifierReferences(root: unknown): Set<string> {
   return refs;
 }
 
-function visitForReferences(
-  value: unknown,
-  scopes: Array<Set<string>>,
-  refs: Set<string>,
-): void {
+function visitForReferences(value: unknown, scopes: Array<Set<string>>, refs: Set<string>): void {
   if (!isAstNode(value) || value.type.startsWith("TS")) {
     return;
   }
@@ -805,10 +783,7 @@ function collectStatementBindings(node: AstNode): Set<string> {
     if (name) {
       names.add(name);
     }
-  } else if (
-    node.type === "ExportNamedDeclaration" ||
-    node.type === "ExportDefaultDeclaration"
-  ) {
+  } else if (node.type === "ExportNamedDeclaration" || node.type === "ExportDefaultDeclaration") {
     let declaration = readNode(node, "declaration");
     if (declaration) {
       for (let name of collectStatementBindings(declaration)) {

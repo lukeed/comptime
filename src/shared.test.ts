@@ -8,7 +8,7 @@ function createEvaluator(value: unknown, bodies: string[]): Evaluator {
       bodies.push(body);
       return value;
     },
-    async dispose() { },
+    async dispose() {},
   };
 }
 
@@ -24,7 +24,7 @@ describe("shared transform core", () => {
 
     expect(result?.code).toContain("let value = 3;");
     expect(result?.map).toBeTruthy();
-    expect(bodies[ 0 ]).toContain("return 1 + 2;");
+    expect(bodies[0]).toContain("return 1 + 2;");
   });
 
   test("ignores comptime identifiers that are not imported from the package", async () => {
@@ -74,8 +74,8 @@ describe("shared transform core", () => {
       "/project/src/app.ts",
     );
 
-    expect(bodies[ 0 ]).toContain('import { fib } from "/project/src/math";');
-    expect(bodies[ 0 ]).not.toContain("unused");
+    expect(bodies[0]).toContain('import { fib } from "/project/src/math";');
+    expect(bodies[0]).not.toContain("unused");
   });
 
   test("includes top-level declarations used by the comptime body", async () => {
@@ -92,8 +92,8 @@ describe("shared transform core", () => {
       "/project/src/app.ts",
     );
 
-    expect(bodies[ 0 ]).toContain("let factor = 3;");
-    expect(bodies[ 0 ]).toContain("function mul(value: number)");
+    expect(bodies[0]).toContain("let factor = 3;");
+    expect(bodies[0]).toContain("function mul(value: number)");
   });
 
   test("reports invalid call shapes at the original location", async () => {
@@ -112,9 +112,7 @@ describe("shared transform core", () => {
 
     expect(thrown).toBeInstanceOf(ComptimeTransformError);
     if (thrown instanceof ComptimeTransformError) {
-      expect(thrown.message).toBe(
-        "comptime() requires a single arrow function with no parameters",
-      );
+      expect(thrown.message).toBe("comptime() requires a single arrow function with no parameters");
       expect(thrown.loc.line).toBe(2);
       expect(thrown.loc.column).toBe(12);
     }
@@ -136,9 +134,7 @@ describe("shared transform core", () => {
 
     expect(thrown).toBeInstanceOf(ComptimeTransformError);
     if (thrown instanceof ComptimeTransformError) {
-      expect(thrown.message).toContain(
-        "comptime returned a value that cannot be serialized",
-      );
+      expect(thrown.message).toContain("comptime returned a value that cannot be serialized");
       expect(thrown.id).toBe("/project/src/app.ts");
     }
   });
@@ -146,9 +142,9 @@ describe("shared transform core", () => {
   test("times out slow evaluations", async () => {
     let evaluator: Evaluator = {
       async evaluate() {
-        return await new Promise(() => { });
+        return await new Promise(() => {});
       },
-      async dispose() { },
+      async dispose() {},
     };
     let core = createCore({
       getEvaluator: () => evaluator,
@@ -178,7 +174,7 @@ describe("shared transform core", () => {
         count += 1;
         return count;
       },
-      async dispose() { },
+      async dispose() {},
     };
     let core = createCore({ getEvaluator: () => evaluator });
     let code =

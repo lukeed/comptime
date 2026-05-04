@@ -192,11 +192,7 @@ export function readDefaultExport(module: unknown): unknown {
   return module.default;
 }
 
-async function transformForModuleRunner(
-  id: string,
-  source: string,
-  cwd: string,
-): Promise<string> {
+async function transformForModuleRunner(id: string, source: string, cwd: string): Promise<string> {
   let filename = id.startsWith("\0") ? resolve(cwd, `${sanitizeVirtualId(id)}.ts`) : id;
   let stripped = await transform(filename, source, {
     cwd,
@@ -296,7 +292,9 @@ function sanitizeVirtualId(id: string): string {
 }
 
 function isBareSpecifier(id: string): boolean {
-  return !id.startsWith("\0") && !id.startsWith(".") && !id.startsWith("/") && !id.startsWith("file:");
+  return (
+    !id.startsWith("\0") && !id.startsWith(".") && !id.startsWith("/") && !id.startsWith("file:")
+  );
 }
 
 function isBuiltin(id: string): boolean {

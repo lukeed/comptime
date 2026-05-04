@@ -3,9 +3,7 @@
     "allowImportingTsExtensions": true,
     "declaration": true,
     "exactOptionalPropertyTypes": true,
-    "lib": [
-      "ES2024"
-    ],
+    "lib": ["ES2024"],
     "module": "Preserve",
     "moduleResolution": "Bundler",
     "noEmit": true,
@@ -13,12 +11,8 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2024",
-    "types": [
-      "bun-types"
-    ],
+    "types": ["bun-types"],
     "verbatimModuleSyntax": true
   },
-  "include": [
-    "src/**/*.ts"
-  ]
+  "include": ["src/**/*.ts"]
 }

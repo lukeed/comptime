@@ -25,7 +25,7 @@ describe("plugin adapters", () => {
     });
     let output = await bundle.generate({ format: "esm" });
     await bundle.close();
-    let code = output.output.map((chunk) => chunk.type === "chunk" ? chunk.code : "").join("\n");
+    let code = output.output.map((chunk) => (chunk.type === "chunk" ? chunk.code : "")).join("\n");
 
     expect(code).toContain("55");
     expect(code).not.toContain("comptime(");
@@ -89,12 +89,14 @@ function collectCode(value: unknown): string {
   if (!Array.isArray(output)) {
     return "";
   }
-  return output.map((chunk) => {
-    if (!isRecord(chunk) || chunk.type !== "chunk" || typeof chunk.code !== "string") {
-      return "";
-    }
-    return chunk.code;
-  }).join("\n");
+  return output
+    .map((chunk) => {
+      if (!isRecord(chunk) || chunk.type !== "chunk" || typeof chunk.code !== "string") {
+        return "";
+      }
+      return chunk.code;
+    })
+    .join("\n");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

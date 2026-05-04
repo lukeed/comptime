@@ -27,7 +27,7 @@ A Zig-inspired build-time evaluation primitive for TypeScript, delivered as Vite
 A single helper, typed as identity, replaced at build time:
 
 ```ts
-import { comptime } from 'comptime';
+import { comptime } from "comptime";
 
 declare function comptime<T>(fn: () => T): T;
 ```
@@ -35,13 +35,13 @@ declare function comptime<T>(fn: () => T): T;
 Usage:
 
 ```ts
-import { comptime } from 'comptime';
-import { fibonacci } from './math';
-import { readdirSync } from 'node:fs';
+import { comptime } from "comptime";
+import { fibonacci } from "./math";
+import { readdirSync } from "node:fs";
 
-const value = comptime(() => fibonacci(10));            // number
-const routes = comptime(() => readdirSync('./pages'));  // string[]
-const buildHash = comptime(() => process.env.GIT_SHA);  // string | undefined
+const value = comptime(() => fibonacci(10)); // number
+const routes = comptime(() => readdirSync("./pages")); // string[]
+const buildHash = comptime(() => process.env.GIT_SHA); // string | undefined
 ```
 
 The function signature gives TS everything it needs — `T` flows from the arrow's return type to the binding. If the bundler plugin doesn't run, the runtime stub throws a clear error so silent regressions are impossible.
@@ -143,12 +143,12 @@ Each detected call yields:
 
 ```ts
 type ComptimeCall = {
-  start: number;            // byte offset of `comptime(` in source
-  end: number;              // byte offset after the closing `)`
-  body: string;             // function body, e.g. "return fib(10)"
+  start: number; // byte offset of `comptime(` in source
+  end: number; // byte offset after the closing `)`
+  body: string; // function body, e.g. "return fib(10)"
   capturedImports: Import[]; // imports the body needs to run
-  origin: string;           // absolute path of containing file
-  index: number;            // ordinal within the file (for stable virtual ids)
+  origin: string; // absolute path of containing file
+  index: number; // ordinal within the file (for stable virtual ids)
 };
 ```
 
@@ -159,7 +159,7 @@ For each `ComptimeCall`, the plugin synthesizes a virtual module:
 ```ts
 // virtual id: "\0comptime:/abs/path/to/file.ts:0"
 
-import { fibonacci } from '/abs/path/to/math.ts';
+import { fibonacci } from "/abs/path/to/math.ts";
 // ...other captured imports...
 
 export default await (async () => {
@@ -190,13 +190,13 @@ This is the cheapest path: the server is already running, modules are already ca
 **Build (`build`)** — instantiate a `ModuleRunner` from `vite/module-runner` connected to the build's transform pipeline:
 
 ```ts
-import { ModuleRunner, ESModulesEvaluator } from 'vite/module-runner';
+import { ModuleRunner, ESModulesEvaluator } from "vite/module-runner";
 
 const runner = new ModuleRunner(
   {
     root: config.root,
     transport: createBuildTransport(/* ... */),
-    sourcemapInterceptor: 'prepareStackTrace',
+    sourcemapInterceptor: "prepareStackTrace",
   },
   new ESModulesEvaluator(),
 );
@@ -212,8 +212,8 @@ The transport bridges runner requests back to Vite's plugin pipeline so the runn
 Rolldown is build-only — there's no dev server analogue, and `ssrLoadModule` doesn't exist in Rolldown's API. Instead, we use **`moduleRunnerTransform`** from `rolldown/experimental`. This is Rolldown's primitive for transforming source into a form runnable by Vite's `ModuleRunner` outside of a Vite context:
 
 ```ts
-import { moduleRunnerTransform } from 'rolldown/experimental';
-import { ModuleRunner, ESModulesEvaluator } from 'vite/module-runner';
+import { moduleRunnerTransform } from "rolldown/experimental";
+import { ModuleRunner, ESModulesEvaluator } from "vite/module-runner";
 
 // Inside the plugin's transform / build phase:
 const runner = new ModuleRunner(
@@ -249,9 +249,9 @@ After evaluation we have an arbitrary JS value. We need to turn it into a JS exp
 Use **`devalue`** (Rich Harris / Svelte). It handles primitives, arrays, plain objects, `Date`, `Map`, `Set`, `RegExp`, `BigInt`, `URL`, cyclic references, and `undefined`. It emits a JS expression (not just JSON), which is what we need.
 
 ```ts
-import { uneval } from 'devalue';
+import { uneval } from "devalue";
 
-const literal = uneval(value);  // e.g. "new Map([['a',1]])"
+const literal = uneval(value); // e.g. "new Map([['a',1]])"
 ```
 
 **Unserializable values** — functions, class instances with private state, DOM nodes, file handles, promises that didn't resolve to plain data — produce a build error with the call site location and a description of which part of the value couldn't be serialized. `devalue` already throws with reasonable messages; we wrap them with source context.
@@ -261,7 +261,7 @@ const literal = uneval(value);  // e.g. "new Map([['a',1]])"
 Use **`magic-string`** to apply edits:
 
 ```ts
-import MagicString from 'magic-string';
+import MagicString from "magic-string";
 
 const s = new MagicString(originalCode);
 for (const call of calls) {
@@ -293,6 +293,7 @@ sha256(
 Detecting which `process.env` keys the body reads requires a static scan of the body for `process.env.X` and `process.env['X']` access. We don't try to handle dynamic key access (`process.env[someVar]`); if we see one, we conservatively include the entire env in the hash and warn.
 
 **Storage:**
+
 - Dev (Vite): in-memory map, invalidated on file change via `handleHotUpdate`.
 - Build: in-memory for the duration of the build only. No disk cache in v1 — Vite/Rolldown both have their own caching layers above us.
 
@@ -302,14 +303,14 @@ Detecting which `process.env` keys the body reads requires a static scan of the 
 
 Every error path produces a Rollup-style error with `loc` pointing at the original `comptime(...)` call site:
 
-| Condition | Error |
-|---|---|
-| `comptime` called with non-arrow / wrong arg shape | `comptime() requires a single arrow function with no parameters` |
-| Body throws during evaluation | `comptime evaluation threw: <original message>` (with original stack as `cause`) |
-| Body returns unserializable value | `comptime returned a value that cannot be serialized: <devalue's reason>` |
-| Body times out (configurable, default 10s) | `comptime evaluation timed out after Xms` |
-| Imports a module that fails to resolve | `comptime body imports '<spec>' which could not be resolved` |
-| Body returns a Promise | Allowed — we `await` it. If it rejects, treat as a throw. |
+| Condition                                          | Error                                                                            |
+| -------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `comptime` called with non-arrow / wrong arg shape | `comptime() requires a single arrow function with no parameters`                 |
+| Body throws during evaluation                      | `comptime evaluation threw: <original message>` (with original stack as `cause`) |
+| Body returns unserializable value                  | `comptime returned a value that cannot be serialized: <devalue's reason>`        |
+| Body times out (configurable, default 10s)         | `comptime evaluation timed out after Xms`                                        |
+| Imports a module that fails to resolve             | `comptime body imports '<spec>' which could not be resolved`                     |
+| Body returns a Promise                             | Allowed — we `await` it. If it rejects, treat as a throw.                        |
 
 Errors during build fail the build. Errors during dev show in the overlay and the affected module's import becomes a runtime error (consistent with how Vite handles other transform failures).
 
@@ -318,9 +319,9 @@ Errors during build fail the build. Errors during dev show in the overlay and th
 ### `comptime/vite`
 
 ```ts
-import type { Plugin, ViteDevServer } from 'vite';
-import { createCore } from 'comptime/shared';
-import { ViteEvaluator } from './evaluator.js';
+import type { Plugin, ViteDevServer } from "vite";
+import { createCore } from "comptime/shared";
+import { ViteEvaluator } from "./evaluator.js";
 
 export function comptime(options?: ComptimeOptions): Plugin {
   let evaluator: ViteEvaluator;
@@ -329,8 +330,8 @@ export function comptime(options?: ComptimeOptions): Plugin {
   const core = createCore({ getEvaluator: () => evaluator });
 
   return {
-    name: 'comptime',
-    enforce: 'pre',
+    name: "comptime",
+    enforce: "pre",
 
     configResolved(config) {
       evaluator = new ViteEvaluator({ command: config.command, config });
@@ -341,12 +342,22 @@ export function comptime(options?: ComptimeOptions): Plugin {
       evaluator.attachServer(s);
     },
 
-    resolveId(id)     { return core.resolveId(id); },
-    load(id)          { return core.load(id); },
-    async transform(code, id) { return core.transform(code, id); },
+    resolveId(id) {
+      return core.resolveId(id);
+    },
+    load(id) {
+      return core.load(id);
+    },
+    async transform(code, id) {
+      return core.transform(code, id);
+    },
 
-    async buildEnd()  { await evaluator.dispose(); },
-    async closeBundle() { await evaluator.dispose(); },
+    async buildEnd() {
+      await evaluator.dispose();
+    },
+    async closeBundle() {
+      await evaluator.dispose();
+    },
   };
 }
 ```
@@ -354,27 +365,37 @@ export function comptime(options?: ComptimeOptions): Plugin {
 ### `comptime/rolldown`
 
 ```ts
-import type { Plugin } from 'rolldown';
-import { createCore } from 'comptime/shared';
-import { RolldownEvaluator } from './evaluator.js';
+import type { Plugin } from "rolldown";
+import { createCore } from "comptime/shared";
+import { RolldownEvaluator } from "./evaluator.js";
 
 export function comptime(options?: ComptimeOptions): Plugin {
   let evaluator: RolldownEvaluator;
   const core = createCore({ getEvaluator: () => evaluator });
 
   return {
-    name: 'comptime',
+    name: "comptime",
     // Rolldown supports `enforce: 'pre'` via the same Rollup-shaped API.
 
     buildStart() {
-      evaluator = new RolldownEvaluator({ /* ... */ });
+      evaluator = new RolldownEvaluator({
+        /* ... */
+      });
     },
 
-    resolveId(id)     { return core.resolveId(id); },
-    load(id)          { return core.load(id); },
-    async transform(code, id) { return core.transform(code, id); },
+    resolveId(id) {
+      return core.resolveId(id);
+    },
+    load(id) {
+      return core.load(id);
+    },
+    async transform(code, id) {
+      return core.transform(code, id);
+    },
 
-    async buildEnd()  { await evaluator.dispose(); },
+    async buildEnd() {
+      await evaluator.dispose();
+    },
   };
 }
 ```
@@ -393,7 +414,7 @@ type ComptimeOptions = {
   timeoutMs?: number;
 
   /** Whitelist of env vars the comptime body may read. Default: all. */
-  env?: string[] | 'all' | 'declared';
+  env?: string[] | "all" | "declared";
 
   /** Custom serializer for value types devalue can't handle. */
   customSerializers?: Array<{
@@ -402,7 +423,7 @@ type ComptimeOptions = {
   }>;
 
   /** Override the imported name (e.g. for codebases that already use `comptime`). */
-  importName?: string;  // default: 'comptime'
+  importName?: string; // default: 'comptime'
 };
 ```
 
@@ -431,21 +452,21 @@ A single fixture project run through both plugins should produce byte-identical 
 
 ## 14. Milestones
 
-| # | Scope | Exit criteria |
-|---|---|---|
-| M0 | Repo, package layout, runtime stub, types | `import { comptime } from 'comptime'` type-checks; runtime stub throws if called |
-| M1 | Shared core: detection, extraction, virtual module synthesis | Unit tests green for AST walking and body extraction |
-| M2 | `comptime/vite` dev mode | `comptime(() => 1+2)` works in `vite` dev server with HMR |
-| M3 | `comptime/vite` build mode via Module Runner | `vite build` produces correct bundles; closures over imports work |
-| M4 | `comptime/rolldown` build mode via `moduleRunnerTransform` | Rolldown produces bundles matching Vite build output for shared fixtures |
-| M5 | Serialization, errors, timeouts, env tracking | All documented error shapes pass tests; timeout works |
-| M6 | Caching + watch integration | HMR re-evaluates only when relevant deps change; build cache is correct |
-| M7 | Docs, examples, public release | README, recipes, migration notes, semver-stable 0.1.0 |
+| #   | Scope                                                        | Exit criteria                                                                    |
+| --- | ------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| M0  | Repo, package layout, runtime stub, types                    | `import { comptime } from 'comptime'` type-checks; runtime stub throws if called |
+| M1  | Shared core: detection, extraction, virtual module synthesis | Unit tests green for AST walking and body extraction                             |
+| M2  | `comptime/vite` dev mode                                     | `comptime(() => 1+2)` works in `vite` dev server with HMR                        |
+| M3  | `comptime/vite` build mode via Module Runner                 | `vite build` produces correct bundles; closures over imports work                |
+| M4  | `comptime/rolldown` build mode via `moduleRunnerTransform`   | Rolldown produces bundles matching Vite build output for shared fixtures         |
+| M5  | Serialization, errors, timeouts, env tracking                | All documented error shapes pass tests; timeout works                            |
+| M6  | Caching + watch integration                                  | HMR re-evaluates only when relevant deps change; build cache is correct          |
+| M7  | Docs, examples, public release                               | README, recipes, migration notes, semver-stable 0.1.0                            |
 
 ## 15. Open questions
 
 - **Which Vite versions to support?** Module Runner is stable in 6+ but the API has shifted. Probably target 6+ and document the floor.
 - **Async comptime bodies.** v1 awaits returned promises. Should we also accept `async () => ...` directly? (Likely yes — same handling.)
 - **Top-level await inside the body.** Module Runner supports it; we should test that it actually works through the virtual module wrapper.
-- **What to do about `import.meta`?** Inside a comptime body, `import.meta.url` should probably reflect the *origin* file, not the virtual module. Worth a deliberate design pass.
+- **What to do about `import.meta`?** Inside a comptime body, `import.meta.url` should probably reflect the _origin_ file, not the virtual module. Worth a deliberate design pass.
 - **Eventual `do comptime:` syntax.** Out of scope for v1, but the function-call form is a clean migration target — `comptime(() => x)` desugars naturally from `do comptime: x` if we ever ship a parser fork.

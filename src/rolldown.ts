@@ -6,9 +6,7 @@ import { createCore } from "./shared";
 export function comptime(options?: ComptimeOptions): Plugin {
   let evaluator: ModuleRunnerEvaluator | undefined;
   let core =
-    options === undefined
-      ? createCore({ getEvaluator })
-      : createCore({ getEvaluator, options });
+    options === undefined ? createCore({ getEvaluator }) : createCore({ getEvaluator, options });
 
   function getEvaluator(): Evaluator {
     if (!evaluator) {

@@ -21,9 +21,7 @@ class ViteEvaluator implements Evaluator {
   async evaluate(virtualId: string, body: string, origin: string): Promise<unknown> {
     let server = this.getServer();
     if (server) {
-      return readDefaultExport(
-        await server.ssrLoadModule(virtualId, { fixStacktrace: true })
-      );
+      return readDefaultExport(await server.ssrLoadModule(virtualId, { fixStacktrace: true }));
     }
     return await this.fallback.evaluate(virtualId, body, origin);
   }
@@ -36,9 +34,7 @@ class ViteEvaluator implements Evaluator {
 export function comptime(options?: ComptimeOptions): Plugin {
   let server: ViteDevServer | undefined;
   let evaluator: Evaluator | undefined;
-  let core = options != null
-    ? createCore({ getEvaluator, options })
-    : createCore({ getEvaluator });
+  let core = options != null ? createCore({ getEvaluator, options }) : createCore({ getEvaluator });
 
   function getEvaluator(): Evaluator {
     if (!evaluator) {
