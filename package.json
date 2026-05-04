@@ -1,0 +1,55 @@
+{
+  "name": "comptime",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "A Zig-inspired build-time evaluation primitive for TypeScript.",
+  "license": "MIT",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/runtime.d.ts",
+      "import": "./dist/runtime.js"
+    },
+    "./vite": {
+      "types": "./dist/vite.d.ts",
+      "import": "./dist/vite.js"
+    },
+    "./rolldown": {
+      "types": "./dist/rolldown.d.ts",
+      "import": "./dist/rolldown.js"
+    }
+  },
+  "scripts": {
+    "build": "bun run build:js && bun run build:types",
+    "build:js": "bun build src/runtime.ts src/vite.ts src/rolldown.ts --outdir dist --target node --format esm --sourcemap=external --external devalue --external magic-string --external rolldown --external rolldown/utils --external vite",
+    "build:types": "tsc -p tsconfig.build.json",
+    "check": "tsc --noEmit",
+    "prepack": "bun run build",
+    "test": "bun test src/*.test.ts"
+  },
+  "dependencies": {
+    "devalue": "^5.5.0",
+    "magic-string": "^0.30.19"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.0",
+    "rolldown": "^1.0.0-rc.18",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.2"
+  },
+  "peerDependencies": {
+    "rolldown": "^1.0.0-rc.18",
+    "vite": "^6.0.0 || ^7.0.0"
+  },
+  "peerDependenciesMeta": {
+    "rolldown": {
+      "optional": true
+    },
+    "vite": {
+      "optional": true
+    }
+  }
+}
