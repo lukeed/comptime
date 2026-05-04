@@ -24,7 +24,7 @@
   },
   "scripts": {
     "build": "bun run build:js && bun run build:types",
-    "build:js": "bun build src/runtime.ts src/vite.ts src/rolldown.ts --outdir dist --target node --format esm --sourcemap=external --external devalue --external magic-string --external rolldown --external rolldown/utils --external vite",
+    "build:js": "bun build src/runtime.ts src/vite.ts src/rolldown.ts --outdir dist --target node --format esm --external devalue --external magic-string --external rolldown --external rolldown/experimental --external rolldown/utils --external vite --external vite/module-runner",
     "build:types": "tsc -p tsconfig.build.json",
     "check": "tsc --noEmit",
     "prepack": "bun run build",

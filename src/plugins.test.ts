@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { rolldown } from "rolldown";
@@ -8,6 +8,14 @@ import { comptime as rolldownComptime } from "./rolldown";
 import { comptime as viteComptime } from "./vite";
 
 describe("plugin adapters", () => {
+  test("evaluator uses rolldown module runner transform", () => {
+    let source = readFileSync(resolve(import.meta.dir, "evaluator.ts"), "utf8");
+
+    expect(source).toContain('from "rolldown/experimental"');
+    expect(source).toContain("moduleRunnerTransform");
+    expect(source).toContain("ModuleRunner");
+  });
+
   test("rolldown build replaces comptime calls", async () => {
     let root = createFixture("rolldown");
     let entry = writeFixture(root);

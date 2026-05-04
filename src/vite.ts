@@ -1,7 +1,8 @@
-import type { Plugin, ViteDevServer } from "vite";
-import { BundleEvaluator, readDefaultExport } from "./evaluator";
-import type { ComptimeOptions, Evaluator } from "./shared";
 import { createCore } from "./shared";
+import { ModuleRunnerEvaluator, readDefaultExport } from "./evaluator";
+
+import type { Plugin, ViteDevServer } from "vite";
+import type { ComptimeOptions, Evaluator } from "./shared";
 
 type ViteEvaluatorOptions = {
   fallback: Evaluator;
@@ -20,24 +21,24 @@ class ViteEvaluator implements Evaluator {
   async evaluate(virtualId: string, body: string, origin: string): Promise<unknown> {
     let server = this.getServer();
     if (server) {
-      let module = await server.ssrLoadModule(virtualId, { fixStacktrace: true });
-      return readDefaultExport(module);
+      return readDefaultExport(
+        await server.ssrLoadModule(virtualId, { fixStacktrace: true })
+      );
     }
     return await this.fallback.evaluate(virtualId, body, origin);
   }
 
-  async dispose(): Promise<void> {
-    await this.fallback.dispose();
+  dispose(): Promise<void> {
+    return this.fallback.dispose();
   }
 }
 
 export function comptime(options?: ComptimeOptions): Plugin {
   let server: ViteDevServer | undefined;
   let evaluator: Evaluator | undefined;
-  let core =
-    options === undefined
-      ? createCore({ getEvaluator })
-      : createCore({ getEvaluator, options });
+  let core = options != null
+    ? createCore({ getEvaluator, options })
+    : createCore({ getEvaluator });
 
   function getEvaluator(): Evaluator {
     if (!evaluator) {
@@ -51,7 +52,7 @@ export function comptime(options?: ComptimeOptions): Plugin {
     enforce: "pre",
     configResolved(config) {
       evaluator = new ViteEvaluator({
-        fallback: new BundleEvaluator({ core, cwd: config.root }),
+        fallback: new ModuleRunnerEvaluator({ core, cwd: config.root }),
         getServer: () => server,
       });
     },

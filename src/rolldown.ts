@@ -1,10 +1,10 @@
 import type { Plugin } from "rolldown";
-import { BundleEvaluator } from "./evaluator";
+import { ModuleRunnerEvaluator } from "./evaluator";
 import type { ComptimeOptions, Evaluator } from "./shared";
 import { createCore } from "./shared";
 
 export function comptime(options?: ComptimeOptions): Plugin {
-  let evaluator: Evaluator | undefined;
+  let evaluator: ModuleRunnerEvaluator | undefined;
   let core =
     options === undefined
       ? createCore({ getEvaluator })
@@ -20,7 +20,7 @@ export function comptime(options?: ComptimeOptions): Plugin {
   return {
     name: "comptime",
     buildStart() {
-      evaluator = new BundleEvaluator({ core, cwd: process.cwd() });
+      evaluator = new ModuleRunnerEvaluator({ core, cwd: process.cwd() });
     },
     resolveId(id) {
       return core.resolveId(id);
@@ -29,10 +29,30 @@ export function comptime(options?: ComptimeOptions): Plugin {
       return core.load(id);
     },
     async transform(code, id) {
-      let result = await core.transform(code, id, {
-        addWatchFile: (file) => this.addWatchFile(file),
+      evaluator?.setHost({
+        resolve: async (source, importer) => {
+          let resolved = await this.resolve(source, importer);
+          if (!resolved) {
+            return null;
+          }
+          return {
+            external: resolved.external === true || resolved.external === "absolute",
+            id: resolved.id,
+          };
+        },
+        load: async (moduleId) => {
+          let loaded = await this.load({ id: moduleId, resolveDependencies: false });
+          return loaded.code;
+        },
       });
-      return result ?? undefined;
+      try {
+        let result = await core.transform(code, id, {
+          addWatchFile: (file) => this.addWatchFile(file),
+        });
+        return result ?? undefined;
+      } finally {
+        evaluator?.setHost(undefined);
+      }
     },
     async buildEnd() {
       await evaluator?.dispose();
