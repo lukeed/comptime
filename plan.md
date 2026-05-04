@@ -411,7 +411,7 @@ type ComptimeOptions = {
   exclude?: string | string[];
 
   /** Per-call evaluation timeout in ms. Default: 10_000. */
-  timeoutMs?: number;
+  timeout?: number;
 
   /** Whitelist of env vars the comptime body may read. Default: all. */
   env?: string[] | "all" | "declared";
@@ -421,9 +421,6 @@ type ComptimeOptions = {
     test: (value: unknown) => boolean;
     serialize: (value: unknown) => string;
   }>;
-
-  /** Override the imported name (e.g. for codebases that already use `comptime`). */
-  importName?: string; // default: 'comptime'
 };
 ```
 

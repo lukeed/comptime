@@ -142,13 +142,13 @@ describe("shared transform core", () => {
   test("times out slow evaluations", async () => {
     let evaluator: Evaluator = {
       async evaluate() {
-        return await new Promise(() => {});
+        return await new Promise((resolve) => setTimeout(() => resolve("late"), 5));
       },
       async dispose() {},
     };
     let core = createCore({
       getEvaluator: () => evaluator,
-      options: { timeoutMs: 1 },
+      options: { timeout: 1 },
     });
     let thrown: unknown;
 

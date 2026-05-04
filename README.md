@@ -1,18 +1,18 @@
 # comptime
 
-Build-time evaluation for TypeScript, exposed as Vite and Rolldown plugins.
+> A Zig-inspired build-time evaluation primitive for TypeScript, exposed as Vite and Rolldown plugins.
 
 ```ts
 import { comptime } from "comptime";
 import { fibonacci } from "./math";
 
-export let value = comptime(() => fibonacci(10));
+export const value = comptime(() => fibonacci(10));
 ```
 
 With the plugin enabled, the call is evaluated during the build and replaced with a serialized expression:
 
 ```ts
-export let value = 55;
+export const value = 55;
 ```
 
 If the plugin is not enabled, the runtime helper throws so missed transforms fail loudly.
@@ -20,7 +20,11 @@ If the plugin is not enabled, the runtime helper throws so missed transforms fai
 ## Install
 
 ```sh
-bun add comptime
+# via rolldown
+bun add --dev comptime rolldown
+
+# via vite
+bun add --dev comptime vite
 ```
 
 ## Vite
@@ -73,24 +77,26 @@ Supported behavior:
 type ComptimeOptions = {
   include?: string | string[];
   exclude?: string | string[];
-  timeoutMs?: number;
+  timeout?: number;
   env?: string[] | "all" | "declared";
   customSerializers?: Array<{
     test: (value: unknown) => boolean;
     serialize: (value: unknown) => string;
   }>;
-  importName?: string;
 };
 ```
 
 Defaults:
 
-- `timeoutMs`: `10_000`
+- `timeout`: `10_000`
 - `env`: `"all"`
-- `importName`: `"comptime"`
 
 When `env` is a string list, static `process.env.KEY` reads must be listed. Dynamic env reads are rejected unless `env` is `"all"`.
 
 ## Limits
 
-This package implements the function-call form only. It does not add custom syntax, browser-side evaluation, disk caching, Webpack support, or esbuild standalone support.
+This package does not add browser-side evaluation, disk caching, Webpack support, or esbuild standalone support.
+
+## License
+
+MIT © [Luke Edwards](https://lukeed.com)

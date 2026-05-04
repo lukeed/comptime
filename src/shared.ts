@@ -5,8 +5,7 @@ import { uneval } from "devalue";
 import MagicString, { type SourceMap } from "magic-string";
 import { parseSync } from "rolldown/utils";
 
-const DEFAULT_IMPORT_NAME = "comptime";
-const DEFAULT_TIMEOUT_MS = 10_000;
+const DEFAULT_TIMEOUT = 10_000;
 const PACKAGE_NAME = "comptime";
 const RUNTIME_ERROR = "comptime() must be replaced by the Vite or Rolldown plugin before runtime";
 const RUNTIME_VIRTUAL_ID = "\0comptime:runtime";
@@ -41,10 +40,9 @@ export type CustomSerializer = {
 export type ComptimeOptions = {
   include?: string | string[];
   exclude?: string | string[];
-  timeoutMs?: number;
+  timeout?: number;
   env?: string[] | "all" | "declared";
   customSerializers?: CustomSerializer[];
-  importName?: string;
 };
 
 export type TransformResult = {
@@ -141,10 +139,9 @@ type RawCall = {
 type NormalizedOptions = {
   include: string[] | undefined;
   exclude: string[] | undefined;
-  timeoutMs: number;
+  timeout: number;
   env: string[] | "all" | "declared";
   customSerializers: CustomSerializer[];
-  importName: string;
 };
 
 type EnvReads = {
@@ -200,10 +197,7 @@ export function createCore(input: CreateCoreOptions): ComptimeCore {
         });
       }
 
-      let comptimeBindings = collectComptimeBindings(
-        parseResult.module.staticImports,
-        options.importName,
-      );
+      let comptimeBindings = collectComptimeBindings(parseResult.module.staticImports);
       if (comptimeBindings.size === 0) {
         return null;
       }
@@ -257,10 +251,10 @@ export function createCore(input: CreateCoreOptions): ComptimeCore {
           try {
             var value = await withTimeout(
               input.getEvaluator().evaluate(virtualId, moduleBody, id),
-              options.timeoutMs,
+              options.timeout,
             );
           } catch (error) {
-            throw wrapEvaluationError(error, code, id, call.start, options.timeoutMs);
+            throw wrapEvaluationError(error, code, id, call.start, options.timeout);
           }
 
           try {
@@ -296,10 +290,9 @@ function normalizeOptions(options: ComptimeOptions | undefined): NormalizedOptio
   return {
     include: normalizePatterns(options?.include),
     exclude: normalizePatterns(options?.exclude),
-    timeoutMs: options?.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    timeout: options?.timeout ?? DEFAULT_TIMEOUT,
     env: options?.env ?? "all",
     customSerializers: options?.customSerializers ?? [],
-    importName: options?.importName ?? DEFAULT_IMPORT_NAME,
   };
 }
 
@@ -311,7 +304,7 @@ function normalizePatterns(value: string | string[] | undefined): string[] | und
 }
 
 function shouldScan(id: string, code: string, options: NormalizedOptions): boolean {
-  if (!code.includes(`${options.importName}(`) && !code.includes(PACKAGE_NAME)) {
+  if (!code.includes(PACKAGE_NAME)) {
     return false;
   }
 
@@ -358,7 +351,7 @@ function matchesPattern(value: string, pattern: string): boolean {
   return new RegExp(`^${escaped}$`).test(value);
 }
 
-function collectComptimeBindings(imports: StaticImportLike[], importName: string): Set<string> {
+function collectComptimeBindings(imports: StaticImportLike[]): Set<string> {
   let names = new Set<string>();
   for (let item of imports) {
     if (item.moduleRequest.value !== PACKAGE_NAME) {
@@ -368,7 +361,7 @@ function collectComptimeBindings(imports: StaticImportLike[], importName: string
       if (entry.isType) {
         continue;
       }
-      if (entry.importName.kind === "Name" && entry.importName.name === importName) {
+      if (entry.importName.kind === "Name" && entry.importName.name === "comptime") {
         names.add(entry.localName.value);
       }
     }
@@ -961,19 +954,19 @@ function serializeValue(value: unknown, options: NormalizedOptions): string {
   return uneval(value);
 }
 
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  let timeout: ReturnType<typeof setTimeout> | undefined;
+async function withTimeout<T>(promise: Promise<T>, timeout: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   let timeoutPromise = new Promise<never>((_resolve, reject) => {
-    timeout = setTimeout(() => {
-      reject(new Error(`comptime evaluation timed out after ${timeoutMs}ms`));
-    }, timeoutMs);
+    timer = setTimeout(() => {
+      reject(new Error(`comptime evaluation timed out after ${timeout}ms`));
+    }, timeout);
   });
 
   try {
     return await Promise.race([promise, timeoutPromise]);
   } finally {
-    if (timeout) {
-      clearTimeout(timeout);
+    if (timer) {
+      clearTimeout(timer);
     }
   }
 }
@@ -983,10 +976,10 @@ function wrapEvaluationError(
   code: string,
   id: string,
   start: number,
-  timeoutMs: number,
+  timeout: number,
 ): ComptimeTransformError {
   let message = messageFrom(error);
-  if (message === `comptime evaluation timed out after ${timeoutMs}ms`) {
+  if (message === `comptime evaluation timed out after ${timeout}ms`) {
     return new ComptimeTransformError({
       message,
       id,

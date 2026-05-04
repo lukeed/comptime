@@ -1,8 +1,13 @@
 {
   "name": "comptime",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "description": "A Zig-inspired build-time evaluation primitive for TypeScript.",
   "license": "MIT",
+  "author": {
+    "name": "Luke Edwards",
+    "email": "luke.edwards05@gmail.com",
+    "url": "https://lukeed.com"
+  },
   "files": [
     "dist",
     "README.md"
