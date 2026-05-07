@@ -79,7 +79,7 @@ type ComptimeOptions = {
   exclude?: string | string[];
   timeout?: number;
   env?: string[] | "all" | "declared";
-  customSerializers?: Array<{
+  serializers?: Array<{
     test: (value: unknown) => boolean;
     serialize: (value: unknown) => string;
   }>;

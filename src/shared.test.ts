@@ -1,6 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { ComptimeTransformError, createCore } from "./shared";
-import type { Evaluator } from "./shared";
+import type { Evaluator, Serializer } from "./shared";
+
+class AssetRef {
+  readonly path: string;
+
+  constructor(path: string) {
+    this.path = path;
+  }
+}
 
 function createEvaluator(value: unknown, bodies: string[]): Evaluator {
   return {
@@ -137,6 +145,63 @@ describe("shared transform core", () => {
       expect(thrown.message).toContain("comptime returned a value that cannot be serialized");
       expect(thrown.id).toBe("/project/src/app.ts");
     }
+  });
+
+  test("includes evaluation cause stack on runtime failures", async () => {
+    let cause = new Error("fixture failed");
+    cause.stack = [
+      "Error: fixture failed",
+      "    at runFixture (comptime:/project/src/app.comptime-0.ts:4:9)",
+    ].join("\n");
+    let evaluator: Evaluator = {
+      async evaluate() {
+        throw cause;
+      },
+      async dispose() {},
+    };
+    let core = createCore({ getEvaluator: () => evaluator });
+    let thrown: unknown;
+
+    try {
+      await core.transform(
+        'import { comptime } from "comptime";\nlet value = comptime(() => runFixture());\n',
+        "/project/src/app.ts",
+      );
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(ComptimeTransformError);
+    if (thrown instanceof ComptimeTransformError) {
+      expect(thrown.message).toBe("comptime evaluation threw: fixture failed");
+      expect(thrown.stack).toContain("Caused by:");
+      expect(thrown.stack).toContain("at runFixture");
+    }
+  });
+
+  test("uses configured serializers", async () => {
+    let serializer: Serializer = {
+      test(value) {
+        return value instanceof AssetRef;
+      },
+      serialize(value) {
+        if (value instanceof AssetRef) {
+          return JSON.stringify({ path: value.path });
+        }
+        throw new Error("unexpected serializer input");
+      },
+    };
+    let evaluator = createEvaluator(new AssetRef("/docs"), []);
+    let core = createCore({
+      getEvaluator: () => evaluator,
+      options: { serializers: [serializer] },
+    });
+    let result = await core.transform(
+      'import { comptime } from "comptime";\nlet value = comptime(() => new URL("https://example.com/docs"));\n',
+      "/project/src/app.ts",
+    );
+
+    expect(result?.code).toContain('let value = {"path":"/docs"};');
   });
 
   test("times out slow evaluations", async () => {

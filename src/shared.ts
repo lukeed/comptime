@@ -35,7 +35,7 @@ export type Evaluator = {
   dispose(): Promise<void>;
 };
 
-export type CustomSerializer = {
+export type Serializer = {
   test(value: unknown): boolean;
   serialize(value: unknown): string;
 };
@@ -45,7 +45,7 @@ export type ComptimeOptions = {
   exclude?: string | string[];
   timeout?: number;
   env?: string[] | "all" | "declared";
-  customSerializers?: CustomSerializer[];
+  serializers?: Serializer[];
 };
 
 export type TransformResult = {
@@ -144,7 +144,7 @@ type NormalizedOptions = {
   exclude: string[] | undefined;
   timeout: number;
   env: string[] | "all" | "declared";
-  customSerializers: CustomSerializer[];
+  serializers: Serializer[];
 };
 
 type EnvReads = {
@@ -299,7 +299,7 @@ function normalizeOptions(options: ComptimeOptions | undefined): NormalizedOptio
     exclude: normalizePatterns(options?.exclude),
     timeout: options?.timeout ?? DEFAULT_TIMEOUT,
     env: options?.env ?? "all",
-    customSerializers: options?.customSerializers ?? [],
+    serializers: options?.serializers ?? [],
   };
 }
 
@@ -995,7 +995,7 @@ function createCacheKey(moduleBody: string, reads: EnvReads): string {
 }
 
 function serializeValue(value: unknown, options: NormalizedOptions): string {
-  for (let serializer of options.customSerializers) {
+  for (let serializer of options.serializers) {
     if (serializer.test(value)) {
       return serializer.serialize(value);
     }

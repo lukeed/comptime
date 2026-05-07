@@ -3,6 +3,8 @@ import { ModuleRunnerEvaluator } from "./evaluator";
 import type { ComptimeOptions, Evaluator } from "./shared";
 import { createCore } from "./shared";
 
+export type { Serializer } from "./shared";
+
 export function comptime(options?: ComptimeOptions): Plugin {
   let evaluator: ModuleRunnerEvaluator | undefined;
   let core =

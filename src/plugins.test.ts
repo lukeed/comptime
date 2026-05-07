@@ -6,8 +6,31 @@ import { rolldown } from "rolldown";
 import { build, createServer } from "vite";
 import { comptime as rolldownComptime } from "./rolldown";
 import { comptime as viteComptime } from "./vite";
+import type { Serializer as RolldownSerializer } from "./rolldown";
+import type { Serializer as ViteSerializer } from "./vite";
+
+let viteSerializer: ViteSerializer = {
+  test(value) {
+    return value instanceof URL;
+  },
+  serialize(value) {
+    if (value instanceof URL) {
+      return JSON.stringify(value.href);
+    }
+    throw new Error("unexpected vite serializer input");
+  },
+};
+
+let rolldownSerializer: RolldownSerializer = viteSerializer;
 
 describe("plugin adapters", () => {
+  test("plugin entrypoints export serializer types", () => {
+    expect(viteSerializer.test(new URL("https://example.com"))).toBe(true);
+    expect(rolldownSerializer.serialize(new URL("https://example.com"))).toBe(
+      '"https://example.com/"',
+    );
+  });
+
   test("evaluator uses rolldown module runner transform", () => {
     let source = readFileSync(resolve(import.meta.dir, "evaluator.ts"), "utf8");
 

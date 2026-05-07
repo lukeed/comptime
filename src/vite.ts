@@ -5,6 +5,8 @@ import type { Plugin, ViteDevServer } from "vite";
 import type { EvaluatorHost } from "./evaluator";
 import type { ComptimeOptions, Evaluator } from "./shared";
 
+export type { Serializer } from "./shared";
+
 type ViteEvaluatorOptions = {
   fallback: Evaluator;
   getServer(): ViteDevServer | undefined;
