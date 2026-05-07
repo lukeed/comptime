@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { rolldown } from "rolldown";
@@ -83,10 +83,49 @@ describe("plugin adapters", () => {
       await server.close();
     }
   });
+
+  test("rolldown build resolves dynamic bare imports from the project", async () => {
+    let root = createFixture("rolldown-dynamic-import");
+    let entry = writeDynamicImportFixture(root);
+    let bundle = await rolldown({
+      cwd: root,
+      input: entry,
+      plugins: [rolldownComptime()],
+    });
+    let output = await bundle.generate({ format: "esm" });
+    await bundle.close();
+    let code = output.output.map((chunk) => (chunk.type === "chunk" ? chunk.code : "")).join("\n");
+
+    expect(code).toContain("55");
+    expect(code).not.toContain("dynamic-comptime-value");
+  });
+
+  test("vite build resolves dynamic bare imports from the project", async () => {
+    let root = createFixture("vite-dynamic-import");
+    let entry = writeDynamicImportFixture(root);
+    let output = await build({
+      root,
+      logLevel: "silent",
+      plugins: [viteComptime()],
+      build: {
+        emptyOutDir: false,
+        lib: {
+          entry,
+          fileName: "app",
+          formats: ["es"],
+        },
+        write: false,
+      },
+    });
+    let code = collectCode(output);
+
+    expect(code).toContain("55");
+    expect(code).not.toContain("dynamic-comptime-value");
+  });
 });
 
 function createFixture(name: string): string {
-  let root = mkdtempSync(resolve(tmpdir(), `comptime-${name}-`));
+  let root = realpathSync(mkdtempSync(resolve(tmpdir(), `comptime-${name}-`)));
   mkdirSync(resolve(root, "src"));
   return root;
 }
@@ -103,6 +142,52 @@ function writeFixture(root: string): string {
       'import { comptime } from "comptime";',
       'import { fib } from "./math";',
       "export let value = comptime(() => fib(10));",
+    ].join("\n"),
+  );
+  return entry;
+}
+
+function writeVariableFixture(root: string, input: number): string {
+  let entry = resolve(root, "src/app.ts");
+  writeFileSync(
+    resolve(root, "src/math.ts"),
+    "export function fib(n: number): number { return n < 2 ? n : fib(n - 1) + fib(n - 2); }\n",
+  );
+  writeFileSync(
+    entry,
+    [
+      'import { comptime } from "comptime";',
+      'import { fib } from "./math";',
+      `let input = ${input};`,
+      "let value = comptime(() => fib(input));",
+      "export let message = `fibonacci(${input}) = ${value}`;",
+    ].join("\n"),
+  );
+  return entry;
+}
+
+function writeDynamicImportFixture(root: string): string {
+  let entry = resolve(root, "src/app.ts");
+  let packageRoot = resolve(root, "node_modules/dynamic-comptime-value");
+  mkdirSync(packageRoot, { recursive: true });
+  writeFileSync(
+    resolve(packageRoot, "package.json"),
+    JSON.stringify({
+      name: "dynamic-comptime-value",
+      version: "1.0.0",
+      type: "module",
+      exports: "./index.js",
+    }),
+  );
+  writeFileSync(resolve(packageRoot, "index.js"), "export let value = 55;\n");
+  writeFileSync(
+    entry,
+    [
+      'import { comptime } from "comptime";',
+      "export let value = comptime(async () => {",
+      '  let mod = await import("dynamic-comptime-value");',
+      "  return mod.value;",
+      "});",
     ].join("\n"),
   );
   return entry;

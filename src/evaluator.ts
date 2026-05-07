@@ -1,4 +1,4 @@
-import { builtinModules } from "node:module";
+import { builtinModules, createRequire } from "node:module";
 import { dirname, extname, isAbsolute, resolve } from "node:path";
 import { access, readFile } from "node:fs/promises";
 import { moduleRunnerTransform } from "rolldown/experimental";
@@ -124,11 +124,28 @@ export class ModuleRunnerEvaluator implements Evaluator {
     if (isBuiltin(id)) {
       return { externalize: id, type: "builtin" };
     }
+
+    let hostResolved = await this.host?.resolve(id, importer);
+    if (hostResolved) {
+      if (hostResolved.external) {
+        return {
+          externalize: resolveExternal(hostResolved.id, importer, this.cwd),
+          type: "module",
+        };
+      }
+      let loaded = await this.loadResolvedModule(hostResolved.id);
+      return await this.transformLoadedModule(loaded);
+    }
+
     if (isBareSpecifier(id)) {
-      return { externalize: resolveExternal(id), type: "module" };
+      return { externalize: resolveExternal(id, importer, this.cwd), type: "module" };
     }
 
     let loaded = await this.loadModule(id, importer);
+    return await this.transformLoadedModule(loaded);
+  }
+
+  private async transformLoadedModule(loaded: LoadedModule): Promise<FetchModuleResult> {
     let transformed = await transformForModuleRunner(loaded.id, loaded.code, this.cwd);
 
     return {
@@ -150,6 +167,10 @@ export class ModuleRunnerEvaluator implements Evaluator {
     }
 
     let resolved = await this.resolveModule(id, importer);
+    return await this.loadResolvedModule(resolved);
+  }
+
+  private async loadResolvedModule(resolved: string): Promise<LoadedModule> {
     let virtualResolved = this.core.resolveId(resolved);
     if (virtualResolved) {
       let code = this.core.load(virtualResolved);
@@ -167,14 +188,6 @@ export class ModuleRunnerEvaluator implements Evaluator {
   }
 
   private async resolveModule(id: string, importer: string | undefined): Promise<string> {
-    let hostResolved = await this.host?.resolve(id, importer);
-    if (hostResolved) {
-      if (hostResolved.external) {
-        return resolveExternal(hostResolved.id);
-      }
-      return hostResolved.id;
-    }
-
     if (id.startsWith("file:")) {
       return new URL(id).pathname;
     }
@@ -269,8 +282,15 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
-function resolveExternal(id: string): string {
-  return import.meta.resolve(id);
+function resolveExternal(id: string, importer: string | undefined, cwd: string): string {
+  if (id.startsWith("file:") || isAbsolute(id)) {
+    return id;
+  }
+  if (!isBareSpecifier(id)) {
+    return id;
+  }
+  let base = importer && !importer.startsWith("\0") ? dirname(importer) : cwd;
+  return createRequire(resolve(base, "comptime-evaluator.js")).resolve(id);
 }
 
 function inferLang(id: string): "js" | "jsx" | "ts" | "tsx" {
