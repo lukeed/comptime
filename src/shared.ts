@@ -256,7 +256,7 @@ export function createCore(input: CreateCoreOptions): ComptimeCore {
         // The module runner can import the internal \0 id, but Vite's TS transform filters skip
         // \0 ids. Register a Vite-only alias based on the source file so ssrLoadModule runs its
         // normal TS/TSX transform before SSR parsing.
-        virtualModules.set(createViteEvaluationId(id, virtualId), moduleBody);
+        virtualModules.set(toDevID(id, virtualId), moduleBody);
 
         let cacheKey = createCacheKey(moduleBody, envReads);
         let literal = cache.get(cacheKey);
@@ -598,7 +598,7 @@ function createVirtualId(id: string, index: number): string {
   return `${EVALUATION_VIRTUAL_PREFIX}${stripQuery(id)}${EVALUATION_INDEX_MARKER}${index}`;
 }
 
-export function createViteEvaluationId(originId: string, virtualId: string): string {
+export function toDevID(originId: string, virtualId: string): string {
   let index = readVirtualIndex(virtualId);
   return `${stripQuery(originId)}${EVALUATION_INDEX_MARKER}${index}`;
 }
