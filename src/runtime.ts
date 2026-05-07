@@ -1,5 +1,4 @@
-const RUNTIME_ERROR = "comptime() must be replaced by the Vite or Rolldown plugin before runtime";
-
-export function comptime<T>(_fn: () => T): T {
+const RUNTIME_ERROR = "Missing comptime() plugin";
+export function comptime<T>(_fn: () => Promise<T> | T): T {
   throw new Error(RUNTIME_ERROR);
 }

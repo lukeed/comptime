@@ -84,6 +84,27 @@ describe("plugin adapters", () => {
     }
   });
 
+  test("vite dev evaluates async comptime bodies", async () => {
+    let root = createFixture("vite-dev-async");
+    writeAsyncFixture(root);
+    let server = await createServer({
+      root,
+      appType: "custom",
+      logLevel: "silent",
+      plugins: [viteComptime()],
+      server: {
+        middlewareMode: true,
+      },
+    });
+
+    try {
+      let result = await server.transformRequest("/src/app.ts");
+      expect(result?.code).toContain("let value = 55;");
+    } finally {
+      await server.close();
+    }
+  });
+
   test("rolldown build resolves dynamic bare imports from the project", async () => {
     let root = createFixture("rolldown-dynamic-import");
     let entry = writeDynamicImportFixture(root);
@@ -187,6 +208,20 @@ function writeDynamicImportFixture(root: string): string {
       "export let value = comptime(async () => {",
       '  let mod = await import("dynamic-comptime-value");',
       "  return mod.value;",
+      "});",
+    ].join("\n"),
+  );
+  return entry;
+}
+
+function writeAsyncFixture(root: string): string {
+  let entry = resolve(root, "src/app.ts");
+  writeFileSync(
+    entry,
+    [
+      'import { comptime } from "comptime";',
+      "export let value = comptime(async () => {",
+      "  return 55;",
       "});",
     ].join("\n"),
   );

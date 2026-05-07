@@ -58,7 +58,7 @@ import { comptime } from "comptime";
 let value = comptime(() => expensivePureWork());
 ```
 
-`comptime<T>(fn: () => T): T` is typed as an identity helper. The plugin requires a single zero-argument arrow function or function expression.
+`comptime<T>(fn: () => T | Promise<T>): T` is typed as an identity helper. The plugin requires a single zero-argument arrow function or function expression.
 
 Supported behavior:
 
