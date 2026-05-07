@@ -58,22 +58,22 @@ type LoadedModule = {
 };
 
 export class ModuleRunnerEvaluator implements Evaluator {
-  private readonly core: Pick<ComptimeCore, "resolveId" | "load">;
-  private readonly cwd: string;
-  private readonly runner: ModuleRunner;
-  private host: EvaluatorHost | undefined;
+  readonly #core: Pick<ComptimeCore, "resolveId" | "load">;
+  readonly #cwd: string;
+  readonly #runner: ModuleRunner;
+  #host: EvaluatorHost | undefined;
 
   constructor(options: ModuleRunnerEvaluatorOptions) {
-    this.core = options.core;
-    this.cwd = options.cwd ?? process.cwd();
-    this.runner = new ModuleRunner(
+    this.#core = options.core;
+    this.#cwd = options.cwd ?? process.cwd();
+    this.#runner = new ModuleRunner(
       {
         hmr: false,
         sourcemapInterceptor: "prepareStackTrace",
         transport: {
           invoke: async (payload: unknown): Promise<InvokeResult> => {
             try {
-              return { result: await this.handleInvoke(payload) };
+              return { result: await this.#handleInvoke(payload) };
             } catch (error) {
               return { error: serializeError(error) };
             }
@@ -85,32 +85,32 @@ export class ModuleRunnerEvaluator implements Evaluator {
   }
 
   setHost(host: EvaluatorHost | undefined): void {
-    this.host = host;
+    this.#host = host;
   }
 
   async evaluate(virtualId: string): Promise<unknown> {
-    let module = await this.runner.import(virtualId);
+    let module = await this.#runner.import(virtualId);
     return readDefaultExport(module);
   }
 
   async dispose(): Promise<void> {
-    if (!this.runner.isClosed()) {
-      await this.runner.close();
+    if (!this.#runner.isClosed()) {
+      await this.#runner.close();
     }
   }
 
-  private async handleInvoke(payload: unknown): Promise<unknown> {
+  async #handleInvoke(payload: unknown): Promise<unknown> {
     let request = parseInvokeRequest(payload);
     if (request.name === "getBuiltins") {
       return builtinIds();
     }
     if (request.name === "fetchModule") {
-      return await this.fetchModule(request.data);
+      return await this.#fetchModule(request.data);
     }
     throw new Error(`Unsupported ModuleRunner invoke: ${request.name}`);
   }
 
-  private async fetchModule(args: unknown[]): Promise<FetchModuleResult> {
+  async #fetchModule(args: unknown[]): Promise<FetchModuleResult> {
     let id = typeof args[0] === "string" ? args[0] : undefined;
     let importer = typeof args[1] === "string" ? args[1] : undefined;
     let options = isRecord(args[2]) ? readFetchModuleOptions(args[2]) : {};
@@ -125,28 +125,28 @@ export class ModuleRunnerEvaluator implements Evaluator {
       return { externalize: id, type: "builtin" };
     }
 
-    let hostResolved = await this.host?.resolve(id, importer);
+    let hostResolved = await this.#host?.resolve(id, importer);
     if (hostResolved) {
       if (hostResolved.external) {
         return {
-          externalize: resolveExternal(hostResolved.id, importer, this.cwd),
+          externalize: resolveExternal(hostResolved.id, importer, this.#cwd),
           type: "module",
         };
       }
-      let loaded = await this.loadResolvedModule(hostResolved.id);
-      return await this.transformLoadedModule(loaded);
+      let loaded = await this.#loadResolvedModule(hostResolved.id);
+      return await this.#transformLoadedModule(loaded);
     }
 
     if (isBareSpecifier(id)) {
-      return { externalize: resolveExternal(id, importer, this.cwd), type: "module" };
+      return { externalize: resolveExternal(id, importer, this.#cwd), type: "module" };
     }
 
-    let loaded = await this.loadModule(id, importer);
-    return await this.transformLoadedModule(loaded);
+    let loaded = await this.#loadModule(id, importer);
+    return await this.#transformLoadedModule(loaded);
   }
 
-  private async transformLoadedModule(loaded: LoadedModule): Promise<FetchModuleResult> {
-    let transformed = await transformForModuleRunner(loaded.id, loaded.code, this.cwd);
+  async #transformLoadedModule(loaded: LoadedModule): Promise<FetchModuleResult> {
+    let transformed = await transformForModuleRunner(loaded.id, loaded.code, this.#cwd);
 
     return {
       code: transformed,
@@ -157,29 +157,29 @@ export class ModuleRunnerEvaluator implements Evaluator {
     };
   }
 
-  private async loadModule(id: string, importer: string | undefined): Promise<LoadedModule> {
-    let virtualId = this.core.resolveId(id);
+  async #loadModule(id: string, importer: string | undefined): Promise<LoadedModule> {
+    let virtualId = this.#core.resolveId(id);
     if (virtualId) {
-      let code = this.core.load(virtualId);
+      let code = this.#core.load(virtualId);
       if (code !== null) {
         return { id: virtualId, code };
       }
     }
 
-    let resolved = await this.resolveModule(id, importer);
-    return await this.loadResolvedModule(resolved);
+    let resolved = await this.#resolveModule(id, importer);
+    return await this.#loadResolvedModule(resolved);
   }
 
-  private async loadResolvedModule(resolved: string): Promise<LoadedModule> {
-    let virtualResolved = this.core.resolveId(resolved);
+  async #loadResolvedModule(resolved: string): Promise<LoadedModule> {
+    let virtualResolved = this.#core.resolveId(resolved);
     if (virtualResolved) {
-      let code = this.core.load(virtualResolved);
+      let code = this.#core.load(virtualResolved);
       if (code !== null) {
         return { id: virtualResolved, code };
       }
     }
 
-    let hostCode = await this.host?.load(resolved);
+    let hostCode = await this.#host?.load(resolved);
     if (hostCode !== undefined && hostCode !== null) {
       return { id: resolved, code: hostCode };
     }
@@ -187,12 +187,12 @@ export class ModuleRunnerEvaluator implements Evaluator {
     return { id: resolved, code: await readFile(resolved, "utf8") };
   }
 
-  private async resolveModule(id: string, importer: string | undefined): Promise<string> {
+  async #resolveModule(id: string, importer: string | undefined): Promise<string> {
     if (id.startsWith("file:")) {
       return new URL(id).pathname;
     }
 
-    let base = importer && !importer.startsWith("\0") ? dirname(importer) : this.cwd;
+    let base = importer && !importer.startsWith("\0") ? dirname(importer) : this.#cwd;
     let candidate = isAbsolute(id) ? id : resolve(base, id);
     return await resolveExistingPath(candidate);
   }

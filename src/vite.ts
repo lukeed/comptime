@@ -13,16 +13,16 @@ type ViteEvaluatorOptions = {
 };
 
 class ViteEvaluator implements Evaluator {
-  private readonly fallback: Evaluator;
-  private readonly getServer: () => ViteDevServer | undefined;
+  readonly #fallback: Evaluator;
+  readonly #getServer: () => ViteDevServer | undefined;
 
   constructor(options: ViteEvaluatorOptions) {
-    this.fallback = options.fallback;
-    this.getServer = options.getServer;
+    this.#fallback = options.fallback;
+    this.#getServer = options.getServer;
   }
 
   async evaluate(virtualId: string, body: string, origin: string): Promise<unknown> {
-    let server = this.getServer();
+    let server = this.#getServer();
     if (server) {
       invalidateVirtualModule(server, virtualId);
       let viteVirtualId = createViteEvaluationId(origin, virtualId);
@@ -38,15 +38,15 @@ class ViteEvaluator implements Evaluator {
         throw error;
       }
     }
-    return await this.fallback.evaluate(virtualId, body, origin);
+    return await this.#fallback.evaluate(virtualId, body, origin);
   }
 
   setHost(host: EvaluatorHost | undefined): void {
-    setEvaluatorHost(this.fallback, host);
+    setEvaluatorHost(this.#fallback, host);
   }
 
   dispose(): Promise<void> {
-    return this.fallback.dispose();
+    return this.#fallback.dispose();
   }
 }
 
