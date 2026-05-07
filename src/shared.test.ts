@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { ComptimeTransformError, createCore, includeEvaluationCauseStack } from "./shared";
-import type { ComptimeCore, ComptimeOptions, Evaluator, Serializer } from "./shared";
+import type { ComptimeCore, Options, Evaluator, Serializer } from "./shared";
 
 class AssetRef {
   readonly path: string;
@@ -13,7 +13,7 @@ class AssetRef {
 function createCoreWithEvaluator(
   value: unknown,
   bodies: string[],
-  options?: ComptimeOptions,
+  options?: Options,
 ): ComptimeCore {
   let core: ComptimeCore | undefined;
   let evaluator: Evaluator = {

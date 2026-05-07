@@ -1,9 +1,12 @@
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { builtinModules, createRequire } from "node:module";
 import { dirname, extname, isAbsolute, resolve } from "node:path";
-import { access, readFile } from "node:fs/promises";
-import { moduleRunnerTransform } from "rolldown/experimental";
+
 import { transform } from "rolldown/utils";
+import { moduleRunnerTransform } from "rolldown/experimental";
 import { ESModulesEvaluator, ModuleRunner } from "vite/module-runner";
+
 import type { ComptimeCore, Evaluator } from "./shared";
 
 const RESOLUTION_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"];
@@ -53,8 +56,8 @@ type LoadedModule = {
 };
 
 export class ModuleRunnerEvaluator implements Evaluator {
-  readonly #core: Pick<ComptimeCore, "resolveId" | "load">;
   readonly #cwd: string;
+  readonly #core: Pick<ComptimeCore, "resolveId" | "load">;
   readonly #runner: ModuleRunner;
   #host: EvaluatorHost | undefined;
 
@@ -89,9 +92,7 @@ export class ModuleRunnerEvaluator implements Evaluator {
   }
 
   async dispose(): Promise<void> {
-    if (!this.#runner.isClosed()) {
-      await this.#runner.close();
-    }
+    this.#runner.isClosed() || (await this.#runner.close());
   }
 
   async #handleInvoke(payload: unknown): Promise<unknown> {
@@ -129,18 +130,21 @@ export class ModuleRunnerEvaluator implements Evaluator {
         };
       }
       let loaded = await this.#loadResolvedModule(hostResolved.id);
-      return await this.#transformLoadedModule(loaded);
+      return await this.#transform(loaded);
     }
 
     if (isBareSpecifier(id)) {
-      return { externalize: resolveExternal(id, importer, this.#cwd), type: "module" };
+      return {
+        type: "module",
+        externalize: resolveExternal(id, importer, this.#cwd),
+      };
     }
 
     let loaded = await this.#loadModule(id, importer);
-    return await this.#transformLoadedModule(loaded);
+    return await this.#transform(loaded);
   }
 
-  async #transformLoadedModule(loaded: LoadedModule): Promise<FetchModuleResult> {
+  async #transform(loaded: LoadedModule): Promise<FetchModuleResult> {
     let transformed = await transformForModuleRunner(loaded.id, loaded.code, this.#cwd);
 
     return {
@@ -153,43 +157,39 @@ export class ModuleRunnerEvaluator implements Evaluator {
   }
 
   async #loadModule(id: string, importer: string | undefined): Promise<LoadedModule> {
-    let virtualId = this.#core.resolveId(id);
-    if (virtualId) {
-      let code = this.#core.load(virtualId);
-      if (code !== null) {
-        return { id: virtualId, code };
+    let virtual = this.#core.resolveId(id);
+    if (virtual) {
+      let code = this.#core.load(virtual);
+      if (code != null) {
+        return { id: virtual, code };
       }
     }
 
-    let resolved = await this.#resolveModule(id, importer);
+    let resolved = this.#resolve(id, importer);
     return await this.#loadResolvedModule(resolved);
   }
 
   async #loadResolvedModule(resolved: string): Promise<LoadedModule> {
-    let virtualResolved = this.#core.resolveId(resolved);
-    if (virtualResolved) {
-      let code = this.#core.load(virtualResolved);
-      if (code !== null) {
-        return { id: virtualResolved, code };
-      }
+    let virtual = this.#core.resolveId(resolved);
+    if (virtual) {
+      let code = this.#core.load(virtual);
+      if (code != null) return { id: virtual, code };
     }
 
     let hostCode = await this.#host?.load(resolved);
-    if (hostCode !== undefined && hostCode !== null) {
-      return { id: resolved, code: hostCode };
-    }
+    if (hostCode != null) return { id: resolved, code: hostCode };
 
     return { id: resolved, code: await readFile(resolved, "utf8") };
   }
 
-  async #resolveModule(id: string, importer: string | undefined): Promise<string> {
+  #resolve(id: string, importer: string | undefined): string {
     if (id.startsWith("file:")) {
       return new URL(id).pathname;
     }
 
     let base = importer && !importer.startsWith("\0") ? dirname(importer) : this.#cwd;
     let candidate = isAbsolute(id) ? id : resolve(base, id);
-    return await resolveExistingPath(candidate);
+    return resolveExistingPath(candidate);
   }
 }
 
@@ -212,9 +212,7 @@ async function transformForModuleRunner(id: string, source: string, cwd: string)
     throw stripped.errors[0] ?? new Error("Rolldown transform failed");
   }
 
-  let transformed = await moduleRunnerTransform(filename, stripped.code, {
-    sourcemap: true,
-  });
+  let transformed = await moduleRunnerTransform(filename, stripped.code, { sourcemap: true });
   if (transformed.errors.length > 0) {
     throw transformed.errors[0] ?? new Error("Rolldown moduleRunnerTransform failed");
   }
@@ -237,21 +235,21 @@ function parseInvokeRequest(payload: unknown): InvokeRequest {
   return { name, data: Array.isArray(args) ? args : [] };
 }
 
-async function resolveExistingPath(path: string): Promise<string> {
-  if (await exists(path)) {
+function resolveExistingPath(path: string): string {
+  if (existsSync(path)) {
     return path;
   }
 
   if (extname(path) === "") {
     for (let extension of RESOLUTION_EXTENSIONS) {
       let candidate = `${path}${extension}`;
-      if (await exists(candidate)) {
+      if (existsSync(candidate)) {
         return candidate;
       }
     }
     for (let extension of RESOLUTION_EXTENSIONS) {
       let candidate = resolve(path, `index${extension}`);
-      if (await exists(candidate)) {
+      if (existsSync(candidate)) {
         return candidate;
       }
     }
@@ -260,19 +258,7 @@ async function resolveExistingPath(path: string): Promise<string> {
   throw new Error(`comptime body imports '${path}' which could not be resolved`);
 }
 
-async function exists(path: string): Promise<boolean> {
-  try {
-    await access(path);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function resolveExternal(id: string, importer: string | undefined, cwd: string): string {
-  if (id.startsWith("file:") || isAbsolute(id)) {
-    return id;
-  }
   if (!isBareSpecifier(id)) {
     return id;
   }
@@ -324,7 +310,7 @@ function serializeError(error: unknown): SerializableError {
       message: error.message,
       name: error.name,
     };
-    if (error.stack !== undefined) {
+    if (error.stack != null) {
       serialized.stack = error.stack;
     }
     return serialized;
@@ -333,5 +319,5 @@ function serializeError(error: unknown): SerializableError {
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+  return typeof value === "object" && value != null;
 }

@@ -1,26 +1,24 @@
-import type { Plugin } from "rolldown";
-import { ModuleRunnerEvaluator } from "./evaluator";
-import type { ComptimeOptions, Evaluator } from "./shared";
 import { createCore } from "./shared";
+import { ModuleRunnerEvaluator } from "./evaluator";
+
+import type { Plugin } from "rolldown";
+import type { Options, Evaluator } from "./shared";
 
 export type { Serializer } from "./shared";
 
-export function comptime(options?: ComptimeOptions): Plugin {
+export function comptime(options?: Options): Plugin {
   let evaluator: ModuleRunnerEvaluator | undefined;
-  let core =
-    options === undefined ? createCore({ getEvaluator }) : createCore({ getEvaluator, options });
+  let core = createCore({ getEvaluator, options });
 
   function getEvaluator(): Evaluator {
-    if (!evaluator) {
-      throw new Error("comptime evaluator was used before buildStart");
-    }
-    return evaluator;
+    if (evaluator) return evaluator;
+    throw new Error("comptime evaluator was used before buildStart");
   }
 
   return {
     name: "comptime",
     buildStart() {
-      evaluator = new ModuleRunnerEvaluator({ core, cwd: process.cwd() });
+      evaluator = new ModuleRunnerEvaluator({ core });
     },
     resolveId(id) {
       return core.resolveId(id);
@@ -32,22 +30,21 @@ export function comptime(options?: ComptimeOptions): Plugin {
       evaluator?.setHost({
         resolve: async (source, importer) => {
           let resolved = await this.resolve(source, importer);
-          if (!resolved) {
-            return null;
-          }
+          if (!resolved) return null;
+
           return {
             external: resolved.external === true || resolved.external === "absolute",
             id: resolved.id,
           };
         },
-        load: async (moduleId) => {
-          let loaded = await this.load({ id: moduleId, resolveDependencies: false });
+        load: async (id) => {
+          let loaded = await this.load({ id, resolveDependencies: false });
           return loaded.code;
         },
       });
       try {
         let result = await core.transform(code, id, {
-          addWatchFile: (file) => this.addWatchFile(file),
+          addWatchFile: this.addWatchFile.bind(this),
         });
         return result ?? undefined;
       } finally {

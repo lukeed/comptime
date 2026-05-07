@@ -1,6 +1,6 @@
+import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { dirname, extname, isAbsolute, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { uneval } from "devalue";
 import MagicString, { type SourceMap } from "magic-string";
 import { parseSync } from "rolldown/utils";
@@ -40,7 +40,7 @@ export type Serializer = {
   serialize(value: unknown): string;
 };
 
-export type ComptimeOptions = {
+export type Options = {
   include?: string | string[];
   exclude?: string | string[];
   timeout?: number;
@@ -66,7 +66,7 @@ export type ComptimeCore = {
 
 export type CreateCoreOptions = {
   getEvaluator(): Evaluator;
-  options?: ComptimeOptions;
+  options?: Options | undefined;
 };
 
 export type SourceLocation = {
@@ -299,7 +299,7 @@ export function createCore(input: CreateCoreOptions): ComptimeCore {
   };
 }
 
-function normalizeOptions(options: ComptimeOptions | undefined): NormalizedOptions {
+function normalizeOptions(options: Options | undefined): NormalizedOptions {
   return {
     include: normalizePatterns(options?.include),
     exclude: normalizePatterns(options?.exclude),
@@ -401,10 +401,11 @@ function collectImportBindings(
       if (entry.isType || comptimeBindings.has(entry.localName.value)) {
         continue;
       }
+      let moduleRequest = resolveImport(item.moduleRequest.value, origin);
       result.set(entry.localName.value, {
         localName: entry.localName.value,
-        statement: createImportStatement(entry, resolveImport(item.moduleRequest.value, origin)),
-        moduleRequest: resolveImport(item.moduleRequest.value, origin),
+        statement: createImportStatement(entry, moduleRequest),
+        moduleRequest,
       });
     }
   }
@@ -1160,5 +1161,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function stripQuery(id: string): string {
-  return id.split("?")[0] ?? id;
+  let index = id.indexOf("?");
+  return index === -1 ? id : id.slice(0, index);
 }

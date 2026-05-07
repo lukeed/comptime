@@ -2,8 +2,8 @@ import { createCore, includeEvaluationCauseStack, toDevID } from "./shared";
 import { ModuleRunnerEvaluator, readDefaultExport } from "./evaluator";
 
 import type { Plugin, ViteDevServer } from "vite";
+import type { Options, Evaluator } from "./shared";
 import type { EvaluatorHost } from "./evaluator";
-import type { ComptimeOptions, Evaluator } from "./shared";
 
 export type { Serializer } from "./shared";
 
@@ -50,16 +50,14 @@ class ViteEvaluator implements Evaluator {
   }
 }
 
-export function comptime(options?: ComptimeOptions): Plugin {
+export function comptime(options?: Options): Plugin {
   let server: ViteDevServer | undefined;
   let evaluator: ViteEvaluator | undefined;
-  let core = options != null ? createCore({ getEvaluator, options }) : createCore({ getEvaluator });
+  let core = createCore({ getEvaluator, options });
 
   function getEvaluator(): Evaluator {
-    if (!evaluator) {
-      throw new Error("comptime evaluator was used before configResolved");
-    }
-    return evaluator;
+    if (evaluator) return evaluator;
+    throw new Error("comptime evaluator was used before configResolved");
   }
 
   return {
@@ -84,22 +82,22 @@ export function comptime(options?: ComptimeOptions): Plugin {
       evaluator?.setHost({
         resolve: async (source, importer) => {
           let resolved = await this.resolve(source, importer);
-          if (!resolved) {
-            return null;
-          }
+          if (!resolved) return null;
+
           return {
             external: resolved.external === true || resolved.external === "absolute",
             id: resolved.id,
           };
         },
-        load: async (moduleId) => {
-          let loaded = await this.load({ id: moduleId, resolveDependencies: false });
+        load: async (id) => {
+          let loaded = await this.load({ id, resolveDependencies: false });
           return loaded.code;
         },
       });
+
       try {
         let result = await core.transform(code, id, {
-          addWatchFile: (file) => this.addWatchFile(file),
+          addWatchFile: this.addWatchFile.bind(this),
         });
         return result ?? undefined;
       } finally {
