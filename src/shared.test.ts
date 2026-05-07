@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { ComptimeTransformError, createCore, includeEvaluationCauseStack } from "./shared";
-import type { Evaluator, Serializer } from "./shared";
+import type { ComptimeCore, ComptimeOptions, Evaluator, Serializer } from "./shared";
 
 class AssetRef {
   readonly path: string;
@@ -10,21 +10,35 @@ class AssetRef {
   }
 }
 
-function createEvaluator(value: unknown, bodies: string[]): Evaluator {
-  return {
-    async evaluate(_virtualId, body) {
-      bodies.push(body);
+function createCoreWithEvaluator(
+  value: unknown,
+  bodies: string[],
+  options?: ComptimeOptions,
+): ComptimeCore {
+  let core: ComptimeCore | undefined;
+  let evaluator: Evaluator = {
+    async evaluate(virtualId) {
+      let body = core?.load(virtualId);
+      if (body !== undefined && body !== null) {
+        bodies.push(body);
+      }
       return value;
     },
     async dispose() {},
   };
+
+  if (options === undefined) {
+    core = createCore({ getEvaluator: () => evaluator });
+  } else {
+    core = createCore({ getEvaluator: () => evaluator, options });
+  }
+  return core;
 }
 
 describe("shared transform core", () => {
   test("replaces imported comptime calls with serialized values", async () => {
     let bodies: string[] = [];
-    let evaluator = createEvaluator(3, bodies);
-    let core = createCore({ getEvaluator: () => evaluator });
+    let core = createCoreWithEvaluator(3, bodies);
     let result = await core.transform(
       'import { comptime } from "comptime";\nlet value = comptime(() => 1 + 2);\n',
       "/project/src/app.ts",
@@ -37,8 +51,7 @@ describe("shared transform core", () => {
 
   test("ignores comptime identifiers that are not imported from the package", async () => {
     let bodies: string[] = [];
-    let evaluator = createEvaluator(1, bodies);
-    let core = createCore({ getEvaluator: () => evaluator });
+    let core = createCoreWithEvaluator(1, bodies);
     let result = await core.transform(
       "let comptime = (fn: () => number) => fn();\nlet value = comptime(() => 2);\n",
       "/project/src/app.ts",
@@ -50,8 +63,7 @@ describe("shared transform core", () => {
 
   test("supports aliased imports and does not transform a shadowed binding", async () => {
     let bodies: string[] = [];
-    let evaluator = createEvaluator(8, bodies);
-    let core = createCore({ getEvaluator: () => evaluator });
+    let core = createCoreWithEvaluator(8, bodies);
     let result = await core.transform(
       [
         'import { comptime as ct } from "comptime";',
@@ -70,8 +82,7 @@ describe("shared transform core", () => {
 
   test("captures referenced imports as absolute imports in virtual modules", async () => {
     let bodies: string[] = [];
-    let evaluator = createEvaluator(55, bodies);
-    let core = createCore({ getEvaluator: () => evaluator });
+    let core = createCoreWithEvaluator(55, bodies);
     await core.transform(
       [
         'import { comptime } from "comptime";',
@@ -88,8 +99,7 @@ describe("shared transform core", () => {
 
   test("includes top-level declarations used by the comptime body", async () => {
     let bodies: string[] = [];
-    let evaluator = createEvaluator(12, bodies);
-    let core = createCore({ getEvaluator: () => evaluator });
+    let core = createCoreWithEvaluator(12, bodies);
     await core.transform(
       [
         'import { comptime } from "comptime";',
@@ -105,8 +115,7 @@ describe("shared transform core", () => {
   });
 
   test("reports invalid call shapes at the original location", async () => {
-    let evaluator = createEvaluator(0, []);
-    let core = createCore({ getEvaluator: () => evaluator });
+    let core = createCoreWithEvaluator(0, []);
     let thrown: unknown;
 
     try {
@@ -127,8 +136,7 @@ describe("shared transform core", () => {
   });
 
   test("wraps serialization failures with the call site", async () => {
-    let evaluator = createEvaluator(() => 1, []);
-    let core = createCore({ getEvaluator: () => evaluator });
+    let core = createCoreWithEvaluator(() => 1, []);
     let thrown: unknown;
 
     try {
@@ -192,11 +200,7 @@ describe("shared transform core", () => {
         throw new Error("unexpected serializer input");
       },
     };
-    let evaluator = createEvaluator(new AssetRef("/docs"), []);
-    let core = createCore({
-      getEvaluator: () => evaluator,
-      options: { serializers: [serializer] },
-    });
+    let core = createCoreWithEvaluator(new AssetRef("/docs"), [], { serializers: [serializer] });
     let result = await core.transform(
       'import { comptime } from "comptime";\nlet value = comptime(() => new URL("https://example.com/docs"));\n',
       "/project/src/app.ts",

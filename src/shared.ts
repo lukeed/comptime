@@ -31,7 +31,7 @@ const SKIPPED_CHILD_KEYS = new Set([
 ]);
 
 export type Evaluator = {
-  evaluate(virtualId: string, body: string, origin: string): Promise<unknown>;
+  evaluate(virtualId: string, origin: string): Promise<unknown>;
   dispose(): Promise<void>;
 };
 
@@ -263,7 +263,7 @@ export function createCore(input: CreateCoreOptions): ComptimeCore {
         if (literal === undefined) {
           try {
             var value = await withTimeout(
-              input.getEvaluator().evaluate(virtualId, moduleBody, id),
+              input.getEvaluator().evaluate(virtualId, id),
               options.timeout,
             );
           } catch (error) {

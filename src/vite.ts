@@ -21,7 +21,7 @@ class ViteEvaluator implements Evaluator {
     this.#getServer = options.getServer;
   }
 
-  async evaluate(virtualId: string, body: string, origin: string): Promise<unknown> {
+  async evaluate(virtualId: string, origin: string): Promise<unknown> {
     let server = this.#getServer();
     if (server) {
       invalidateVirtualModule(server, virtualId);
