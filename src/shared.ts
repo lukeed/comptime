@@ -610,6 +610,9 @@ async function resolveDynamicImports(
     if (!resolved || resolved === item.specifier) {
       continue;
     }
+    if (isAbsolute(resolved)) {
+      context.addWatchFile?.(resolved);
+    }
     edited ??= new MagicString(fnInfo.body);
     edited.overwrite(item.start, item.end, JSON.stringify(resolved));
   }

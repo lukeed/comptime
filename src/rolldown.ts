@@ -56,6 +56,9 @@ export function comptime(options?: Options): Plugin {
         evaluator?.setHost(undefined);
       }
     },
+    watchChange(id) {
+      core.invalidate(id);
+    },
     async buildEnd() {
       await evaluator?.dispose();
     },

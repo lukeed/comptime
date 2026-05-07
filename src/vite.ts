@@ -109,6 +109,9 @@ export function comptime(options?: Options): Plugin {
         evaluator?.setHost(undefined);
       }
     },
+    watchChange(id) {
+      core.invalidate(id);
+    },
     handleHotUpdate(context) {
       core.invalidate(context.file);
     },

@@ -8,6 +8,7 @@ import { moduleRunnerTransform } from "rolldown/experimental";
 import { ESModulesEvaluator, ModuleRunner } from "vite/module-runner";
 
 import type { ComptimeCore, Evaluator } from "./shared";
+import type { EvaluatedModuleNode } from "vite/module-runner";
 
 const RESOLUTION_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"];
 const EVALUATION_VIRTUAL_PREFIX = "\0comptime:";
@@ -89,6 +90,7 @@ export class ModuleRunnerEvaluator implements Evaluator {
   }
 
   async evaluate(virtualId: string): Promise<unknown> {
+    this.#invalidate(virtualId);
     let module = await this.#runner.import(virtualId);
     return readDefaultExport(module);
   }
@@ -183,6 +185,27 @@ export class ModuleRunnerEvaluator implements Evaluator {
     if (hostCode != null) return { id: resolved, code: hostCode };
 
     return { id: resolved, code: await readFile(resolved, "utf8") };
+  }
+
+  #invalidate(id: string): void {
+    let module = this.#runner.evaluatedModules.getModuleById(id);
+    if (module) {
+      this.#invalidateModule(module, new Set());
+    }
+  }
+
+  #invalidateModule(module: EvaluatedModuleNode, seen: Set<string>): void {
+    if (seen.has(module.id)) {
+      return;
+    }
+    seen.add(module.id);
+    for (let imported of module.imports) {
+      let dependency = this.#runner.evaluatedModules.getModuleById(imported);
+      if (dependency) {
+        this.#invalidateModule(dependency, seen);
+      }
+    }
+    this.#runner.evaluatedModules.invalidateModule(module);
   }
 
   #resolve(id: string, importer: string | undefined): string {

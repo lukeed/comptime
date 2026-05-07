@@ -4,7 +4,9 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { rolldown } from "rolldown";
 import { build, createServer } from "vite";
+import { ModuleRunnerEvaluator } from "./evaluator";
 import { comptime as rolldownComptime } from "./rolldown";
+import { createCore } from "./shared";
 import { comptime as viteComptime } from "./vite";
 import type { Serializer as RolldownSerializer } from "./rolldown";
 import type { Serializer as ViteSerializer } from "./vite";
@@ -125,6 +127,67 @@ describe("plugin adapters", () => {
       expect(result?.code).toContain("let value = 55;");
     } finally {
       await server.close();
+    }
+  });
+
+  test("vite dev reevaluates when dynamic comptime imports change", async () => {
+    let root = createFixture("vite-dev-dynamic-import-update");
+    let entry = writeDynamicDependencyFixture(root, "one");
+    let dependency = resolve(root, "src/article.ts");
+    let server = await createServer({
+      root,
+      appType: "custom",
+      logLevel: "silent",
+      plugins: [viteComptime()],
+      server: {
+        middlewareMode: true,
+      },
+    });
+
+    try {
+      let first = await server.transformRequest("/src/app.ts");
+      expect(first?.code).toContain('let html = "one";');
+
+      writeDynamicDependencyFixture(root, "two");
+      await server.pluginContainer.watchChange(dependency, { event: "update" });
+      server.moduleGraph.onFileChange(dependency);
+
+      let second = await server.transformRequest("/src/app.ts");
+      expect(second?.code).toContain('let html = "two";');
+      expect(second?.code).not.toContain('let html = "one";');
+    } finally {
+      await server.close();
+    }
+  });
+
+  test("module runner reevaluates dynamic import dependencies after invalidation", async () => {
+    let root = createFixture("module-runner-dynamic-import-update");
+    let entry = writeDynamicDependencyFixture(root, "one");
+    let dependency = resolve(root, "src/article.ts");
+    let source = readFileSync(entry, "utf8");
+    let evaluator: ModuleRunnerEvaluator | undefined;
+    let core = createCore({
+      getEvaluator() {
+        if (!evaluator) {
+          throw new Error("fixture evaluator was used before initialization");
+        }
+        return evaluator;
+      },
+    });
+    evaluator = new ModuleRunnerEvaluator({ core, cwd: root });
+
+    try {
+      let first = await core.transform(source, entry);
+      expect(first?.code).toContain('export let html = "one";');
+
+      writeDynamicDependencyFixture(root, "two");
+      core.invalidate(dependency);
+
+      let second = await core.transform(source, entry);
+      expect(second?.code).toContain('export let html = "two";');
+      expect(second?.code).not.toContain('export let html = "one";');
+    } finally {
+      await evaluator.dispose();
     }
   });
 
@@ -417,6 +480,25 @@ function writeDynamicRelativeImportFixture(root: string): string {
       "export let value = comptime(async () => {",
       '  let mod = await import("./value");',
       "  return mod.value;",
+      "});",
+    ].join("\n"),
+  );
+  return entry;
+}
+
+function writeDynamicDependencyFixture(root: string, value: string): string {
+  let entry = resolve(root, "src/app.ts");
+  writeFileSync(
+    resolve(root, "src/article.ts"),
+    [`export function renderArticle() {`, `  return ${JSON.stringify(value)};`, `}`].join("\n"),
+  );
+  writeFileSync(
+    entry,
+    [
+      'import { comptime } from "comptime";',
+      "export let html = comptime(async () => {",
+      '  let { renderArticle } = await import("./article");',
+      "  return renderArticle();",
       "});",
     ].join("\n"),
   );
