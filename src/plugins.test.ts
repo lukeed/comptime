@@ -105,6 +105,27 @@ describe("plugin adapters", () => {
     }
   });
 
+  test("vite dev strips TypeScript in comptime bodies", async () => {
+    let root = createFixture("vite-dev-typescript-body");
+    writeTypedAsyncFixture(root);
+    let server = await createServer({
+      root,
+      appType: "custom",
+      logLevel: "silent",
+      plugins: [viteComptime()],
+      server: {
+        middlewareMode: true,
+      },
+    });
+
+    try {
+      let result = await server.transformRequest("/src/app.ts");
+      expect(result?.code).toContain('let value = "ok";');
+    } finally {
+      await server.close();
+    }
+  });
+
   test("rolldown build resolves dynamic bare imports from the project", async () => {
     let root = createFixture("rolldown-dynamic-import");
     let entry = writeDynamicImportFixture(root);
@@ -222,6 +243,22 @@ function writeAsyncFixture(root: string): string {
       'import { comptime } from "comptime";',
       "export let value = comptime(async () => {",
       "  return 55;",
+      "});",
+    ].join("\n"),
+  );
+  return entry;
+}
+
+function writeTypedAsyncFixture(root: string): string {
+  let entry = resolve(root, "src/app.ts");
+  writeFileSync(
+    entry,
+    [
+      'import { comptime } from "comptime";',
+      "type Payload = { value: string };",
+      "export let value = comptime(async () => {",
+      '  let payload: Payload = { value: "ok" };',
+      "  return payload.value;",
       "});",
     ].join("\n"),
   );

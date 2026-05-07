@@ -10,6 +10,9 @@ const PACKAGE_NAME = "comptime";
 const RUNTIME_ERROR = "comptime() must be replaced by the Vite or Rolldown plugin before runtime";
 const RUNTIME_VIRTUAL_ID = "\0comptime:runtime";
 const RUNTIME_VIRTUAL_MODULE = `export function comptime() { throw new Error(${JSON.stringify(RUNTIME_ERROR)}); }\n`;
+const EVALUATION_VIRTUAL_PREFIX = "\0comptime:";
+const VITE_EVALUATION_VIRTUAL_PREFIX = "comptime:";
+const EVALUATION_INDEX_MARKER = "?comptime=";
 const SUPPORTED_EXTENSIONS = new Set([
   ".js",
   ".jsx",
@@ -237,13 +240,17 @@ export function createCore(input: CreateCoreOptions): ComptimeCore {
           context?.addWatchFile?.(captured);
         }
 
-        let virtualId = `\0comptime:${stripQuery(id)}:${call.index}`;
+        let virtualId = createVirtualId(id, call.index);
         let moduleBody = createVirtualModule(
           capturedImports.statements,
           capturedDeclarations,
           fnInfo.body,
         );
         virtualModules.set(virtualId, moduleBody);
+        // The module runner can import the internal \0 id, but Vite's TS transform filters skip
+        // \0 ids. Register a Vite-only alias that ends in the source extension so ssrLoadModule
+        // runs its normal TS/TSX transform before SSR parsing.
+        virtualModules.set(createViteEvaluationId(id, virtualId), moduleBody);
 
         let cacheKey = createCacheKey(moduleBody, envReads);
         let literal = cache.get(cacheKey);
@@ -304,6 +311,10 @@ function normalizePatterns(value: string | string[] | undefined): string[] | und
 }
 
 function shouldScan(id: string, code: string, options: NormalizedOptions): boolean {
+  if (id.startsWith(EVALUATION_VIRTUAL_PREFIX) || id.startsWith(VITE_EVALUATION_VIRTUAL_PREFIX)) {
+    return false;
+  }
+
   if (!code.includes(PACKAGE_NAME)) {
     return false;
   }
@@ -575,6 +586,33 @@ function createVirtualResultName(parts: string[], body: string): string {
     name = `${name}_`;
   }
   return name;
+}
+
+function createVirtualId(id: string, index: number): string {
+  return `${EVALUATION_VIRTUAL_PREFIX}${stripQuery(id)}${EVALUATION_INDEX_MARKER}${index}`;
+}
+
+export function createViteEvaluationId(originId: string, virtualId: string): string {
+  let index = readVirtualIndex(virtualId);
+  let cleanId = stripQuery(originId);
+  let extension = extname(cleanId);
+  if (extension === "") {
+    return `${VITE_EVALUATION_VIRTUAL_PREFIX}${cleanId}.comptime-${index}.js`;
+  }
+  return `${VITE_EVALUATION_VIRTUAL_PREFIX}${cleanId.slice(0, -extension.length)}.comptime-${index}${extension}`;
+}
+
+function readVirtualIndex(virtualId: string): number {
+  let marker = virtualId.lastIndexOf(EVALUATION_INDEX_MARKER);
+  if (marker === -1) {
+    throw new Error(`Invalid comptime virtual id: ${virtualId}`);
+  }
+  let rawIndex = virtualId.slice(marker + EVALUATION_INDEX_MARKER.length);
+  let index = Number(rawIndex);
+  if (!Number.isInteger(index) || index < 0) {
+    throw new Error(`Invalid comptime virtual index: ${rawIndex}`);
+  }
+  return index;
 }
 
 function createImportStatements(
