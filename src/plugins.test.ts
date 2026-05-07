@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { rolldown } from "rolldown";
-import { build } from "vite";
+import { build, createServer } from "vite";
 import { comptime as rolldownComptime } from "./rolldown";
 import { comptime as viteComptime } from "./vite";
 
@@ -52,6 +52,36 @@ describe("plugin adapters", () => {
 
     expect(code).toContain("55");
     expect(code).not.toContain("comptime(");
+  });
+
+  test("vite dev reevaluates changed virtual modules", async () => {
+    let root = createFixture("vite-dev");
+    let entry = writeVariableFixture(root, 12);
+    let server = await createServer({
+      root,
+      appType: "custom",
+      logLevel: "silent",
+      plugins: [viteComptime()],
+      server: {
+        middlewareMode: true,
+      },
+    });
+
+    try {
+      let first = await server.transformRequest("/src/app.ts");
+      expect(first?.code).toContain("let input = 12;");
+      expect(first?.code).toContain("let value = 144;");
+
+      writeVariableFixture(root, 10);
+      server.moduleGraph.onFileChange(entry);
+
+      let second = await server.transformRequest("/src/app.ts");
+      expect(second?.code).toContain("let input = 10;");
+      expect(second?.code).toContain("let value = 55;");
+      expect(second?.code).not.toContain("let value = 144;");
+    } finally {
+      await server.close();
+    }
   });
 });
 
