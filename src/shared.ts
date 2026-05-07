@@ -12,7 +12,7 @@ const RUNTIME_VIRTUAL_ID = "\0comptime:runtime";
 const RUNTIME_VIRTUAL_MODULE = `export function comptime() { throw new Error(${JSON.stringify(RUNTIME_ERROR)}); }\n`;
 const EVALUATION_VIRTUAL_PREFIX = "\0comptime:";
 const EVALUATION_INDEX_MARKER = "?comptime=";
-const INCLUDE_CAUSE_STACK = "__comptime_include_cause_stack";
+const EVALUATION_CAUSE_STACKS = new WeakSet<object>();
 const SUPPORTED_EXTENSIONS = new Set([
   ".js",
   ".jsx",
@@ -101,10 +101,7 @@ export class ComptimeTransformError extends Error {
 
 export function includeEvaluationCauseStack(error: unknown): void {
   if (isRecord(error)) {
-    Object.defineProperty(error, INCLUDE_CAUSE_STACK, {
-      configurable: true,
-      value: true,
-    });
+    EVALUATION_CAUSE_STACKS.add(error);
   }
 }
 
@@ -1067,7 +1064,7 @@ function appendCauseStackIfNeeded(error: Error, cause: unknown): void {
 }
 
 function shouldIncludeCauseStack(error: unknown): boolean {
-  return isRecord(error) && error[INCLUDE_CAUSE_STACK] === true;
+  return isRecord(error) && EVALUATION_CAUSE_STACKS.has(error);
 }
 
 function stackFrom(error: unknown): string | undefined {
