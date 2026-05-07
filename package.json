@@ -42,12 +42,12 @@
   "devDependencies": {
     "@types/bun": "^1.3.0",
     "oxfmt": "^0.47.0",
-    "rolldown": "^1.0.0-rc.18",
+    "rolldown": "^1.0.0",
     "typescript": "^6.0.0",
     "vite": "^8.0.0"
   },
   "peerDependencies": {
-    "rolldown": "^1.0.0-rc.18",
+    "rolldown": "^1.0.0",
     "vite": "^6 || ^7 || ^8"
   },
   "peerDependenciesMeta": {
