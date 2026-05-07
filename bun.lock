@@ -22,8 +22,95 @@
         "vite",
       ],
     },
+    "examples/async-fetch": {
+      "name": "@demo/async-fetch",
+      "devDependencies": {
+        "comptime": "file:../..",
+        "rolldown": "^1.0.0",
+        "vite": "^8.0.0",
+      },
+    },
+    "examples/custom-serializer": {
+      "name": "@demo/custom-serializer",
+      "devDependencies": {
+        "comptime": "file:../..",
+        "rolldown": "^1.0.0",
+        "vite": "^8.0.0",
+      },
+    },
+    "examples/env-stamping": {
+      "name": "@demo/env-stamping",
+      "devDependencies": {
+        "comptime": "file:../..",
+        "rolldown": "^1.0.0",
+        "vite": "^8.0.0",
+      },
+    },
+    "examples/errors": {
+      "name": "@demo/errors",
+      "devDependencies": {
+        "comptime": "file:../..",
+        "rolldown": "^1.0.0",
+        "vite": "^8.0.0",
+      },
+    },
+    "examples/fibonacci": {
+      "name": "@demo/fibonacci",
+      "devDependencies": {
+        "comptime": "file:../..",
+        "rolldown": "^1.0.0",
+        "vite": "^8.0.0",
+      },
+    },
+    "examples/lookup-table": {
+      "name": "@demo/lookup-table",
+      "devDependencies": {
+        "comptime": "file:../..",
+        "rolldown": "^1.0.0",
+        "vite": "^8.0.0",
+      },
+    },
+    "examples/markdown-precompile": {
+      "name": "@demo/markdown-precompile",
+      "dependencies": {
+        "md4x": "^0.0.25",
+      },
+      "devDependencies": {
+        "comptime": "file:../..",
+        "rolldown": "^1.0.0",
+        "vite": "^8.0.0",
+      },
+    },
+    "examples/preact-render-to-string": {
+      "name": "@demo/preact",
+      "dependencies": {
+        "preact": "^10.29.1",
+        "preact-render-to-string": "^6.6.7",
+      },
+      "devDependencies": {
+        "comptime": "file:../..",
+        "rolldown": "^1.0.0",
+        "vite": "^8.0.0",
+      },
+    },
   },
   "packages": {
+    "@demo/async-fetch": ["@demo/async-fetch@workspace:examples/async-fetch"],
+
+    "@demo/custom-serializer": ["@demo/custom-serializer@workspace:examples/custom-serializer"],
+
+    "@demo/env-stamping": ["@demo/env-stamping@workspace:examples/env-stamping"],
+
+    "@demo/errors": ["@demo/errors@workspace:examples/errors"],
+
+    "@demo/fibonacci": ["@demo/fibonacci@workspace:examples/fibonacci"],
+
+    "@demo/lookup-table": ["@demo/lookup-table@workspace:examples/lookup-table"],
+
+    "@demo/markdown-precompile": ["@demo/markdown-precompile@workspace:examples/markdown-precompile"],
+
+    "@demo/preact": ["@demo/preact@workspace:examples/preact-render-to-string"],
+
     "@emnapi/core": ["@emnapi/core@1.10.0", "", { "dependencies": { "@emnapi/wasi-threads": "1.2.1", "tslib": "^2.4.0" } }, "sha512-yq6OkJ4p82CAfPl0u9mQebQHKPJkY7WrIuk205cTYnYe+k2Z8YBh11FrbRG/H6ihirqcacOgl2BIO8oyMQLeXw=="],
 
     "@emnapi/runtime": ["@emnapi/runtime@1.10.0", "", { "dependencies": { "tslib": "^2.4.0" } }, "sha512-ewvYlk86xUoGI0zQRNq/mC+16R1QeDlKQy21Ki3oSYXNgLb45GV1P6A0M+/s6nyCuNDqe5VpaY84BzXGwVbwFA=="],
@@ -114,6 +201,8 @@
 
     "bun-types": ["bun-types@1.3.13", "", { "dependencies": { "@types/node": "*" } }, "sha512-QXKeHLlOLqQX9LgYaHJfzdBaV21T63HhFJnvuRCcjZiaUDpbs5ED1MgxbMra71CsryN/1dAoXuJJJwIv/2drVA=="],
 
+    "comptime": ["@root:", {}],
+
     "detect-libc": ["detect-libc@2.1.2", "", {}, "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="],
 
     "devalue": ["devalue@5.8.0", "", {}, "sha512-2zA9pFEsnp7vWBZbXF5JAgAq0fsUIt/1XPbRiAmRV3lp/2C3upzH+sADiyy66aFCihoLEsrQHxNM5w1gIDfsBg=="],
@@ -148,6 +237,8 @@
 
     "magic-string": ["magic-string@0.30.21", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.5" } }, "sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ=="],
 
+    "md4x": ["md4x@0.0.25", "", { "bin": { "md4x": "lib/cli.mjs" } }, "sha512-GrexawUhrKcwl7o2hkgs7Ut0PqI/meOCevmaRB1ueKo2y1Fh2nIl8e6KKawYGm9eXJP3u6BzVs4rzZOc2+w3hA=="],
+
     "nanoid": ["nanoid@3.3.12", "", { "bin": { "nanoid": "bin/nanoid.cjs" } }, "sha512-ZB9RH/39qpq5Vu6Y+NmUaFhQR6pp+M2Xt76XBnEwDaGcVAqhlvxrl3B2bKS5D3NH3QR76v3aSrKaF/Kiy7lEtQ=="],
 
     "oxfmt": ["oxfmt@0.47.0", "", { "dependencies": { "tinypool": "2.1.0" }, "optionalDependencies": { "@oxfmt/binding-android-arm-eabi": "0.47.0", "@oxfmt/binding-android-arm64": "0.47.0", "@oxfmt/binding-darwin-arm64": "0.47.0", "@oxfmt/binding-darwin-x64": "0.47.0", "@oxfmt/binding-freebsd-x64": "0.47.0", "@oxfmt/binding-linux-arm-gnueabihf": "0.47.0", "@oxfmt/binding-linux-arm-musleabihf": "0.47.0", "@oxfmt/binding-linux-arm64-gnu": "0.47.0", "@oxfmt/binding-linux-arm64-musl": "0.47.0", "@oxfmt/binding-linux-ppc64-gnu": "0.47.0", "@oxfmt/binding-linux-riscv64-gnu": "0.47.0", "@oxfmt/binding-linux-riscv64-musl": "0.47.0", "@oxfmt/binding-linux-s390x-gnu": "0.47.0", "@oxfmt/binding-linux-x64-gnu": "0.47.0", "@oxfmt/binding-linux-x64-musl": "0.47.0", "@oxfmt/binding-openharmony-arm64": "0.47.0", "@oxfmt/binding-win32-arm64-msvc": "0.47.0", "@oxfmt/binding-win32-ia32-msvc": "0.47.0", "@oxfmt/binding-win32-x64-msvc": "0.47.0" }, "bin": { "oxfmt": "bin/oxfmt" } }, "sha512-OFbkbzxKCpooQEnRmpTDnuwTX8KHXzZTQ4Df/hz85fpS67Pl+lxPEFvUtin56HIIS0B1k4X8oIzTXRZPufA2CA=="],
@@ -157,6 +248,10 @@
     "picomatch": ["picomatch@4.0.4", "", {}, "sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A=="],
 
     "postcss": ["postcss@8.5.13", "", { "dependencies": { "nanoid": "^3.3.11", "picocolors": "^1.1.1", "source-map-js": "^1.2.1" } }, "sha512-qif0+jGGZoLWdHey3UFHHWP0H7Gbmsk8T5VEqyYFbWqPr1XqvLGBbk/sl8V5exGmcYJklJOhOQq1pV9IcsiFag=="],
+
+    "preact": ["preact@10.29.1", "", {}, "sha512-gQCLc/vWroE8lIpleXtdJhTFDogTdZG9AjMUpVkDf2iTCNwYNWA+u16dL41TqUDJO4gm2IgrcMv3uTpjd4Pwmg=="],
+
+    "preact-render-to-string": ["preact-render-to-string@6.6.7", "", { "peerDependencies": { "preact": ">=10 || >= 11.0.0-0" } }, "sha512-3XdbsX3+vn9dQW+jJI/FsI9rlkgl6dbeUpqLsChak6jp3j3auFqBCkno7VChbMFs5Q8ylBj6DrUkKRwtVN3nvw=="],
 
     "rolldown": ["rolldown@1.0.0", "", { "dependencies": { "@oxc-project/types": "=0.129.0", "@rolldown/pluginutils": "1.0.0" }, "optionalDependencies": { "@rolldown/binding-android-arm64": "1.0.0", "@rolldown/binding-darwin-arm64": "1.0.0", "@rolldown/binding-darwin-x64": "1.0.0", "@rolldown/binding-freebsd-x64": "1.0.0", "@rolldown/binding-linux-arm-gnueabihf": "1.0.0", "@rolldown/binding-linux-arm64-gnu": "1.0.0", "@rolldown/binding-linux-arm64-musl": "1.0.0", "@rolldown/binding-linux-ppc64-gnu": "1.0.0", "@rolldown/binding-linux-s390x-gnu": "1.0.0", "@rolldown/binding-linux-x64-gnu": "1.0.0", "@rolldown/binding-linux-x64-musl": "1.0.0", "@rolldown/binding-openharmony-arm64": "1.0.0", "@rolldown/binding-wasm32-wasi": "1.0.0", "@rolldown/binding-win32-arm64-msvc": "1.0.0", "@rolldown/binding-win32-x64-msvc": "1.0.0" }, "bin": { "rolldown": "bin/cli.mjs" } }, "sha512-yD986aXDESFGS95spT1LAv0jssywP4npMEjmMHyN2/5+eE8qQJUype2AaKkRiLgBgyD0LFlubwAht7VmY8rGoA=="],
 

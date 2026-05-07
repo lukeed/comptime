@@ -1,0 +1,17 @@
+{
+  "name": "@demo/custom-serializer",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "scripts": {
+    "vite:dev": "vite dev",
+    "vite:build": "vite build",
+    "rd:dev": "rolldown -c --watch",
+    "rd:build": "rolldown -c"
+  },
+  "devDependencies": {
+    "comptime": "file:../..",
+    "rolldown": "^1.0.0",
+    "vite": "^8.0.0"
+  }
+}

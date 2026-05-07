@@ -8,6 +8,9 @@
     "email": "luke.edwards05@gmail.com",
     "url": "https://lukeed.com"
   },
+  "workspaces": [
+    "examples/*"
+  ],
   "files": [
     "dist"
   ],

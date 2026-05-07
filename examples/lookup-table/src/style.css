@@ -1,0 +1,43 @@
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #0d1117;
+  color: #e6edf3;
+  font-family: ui-monospace, "SFMono-Regular", "SF Mono", Consolas, monospace;
+}
+
+main {
+  width: min(54rem, calc(100vw - 2rem));
+}
+
+p {
+  margin: 0 0 0.75rem;
+  color: #7dd3fc;
+}
+
+h1 {
+  margin: 0 0 1.5rem;
+  font-size: 2rem;
+}
+
+#samples {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.sample {
+  display: grid;
+  grid-template-columns: 4rem 1fr 13rem;
+  gap: 1rem;
+  align-items: center;
+}
+
+meter {
+  width: 100%;
+}
+
+code {
+  color: #a7f3d0;
+}

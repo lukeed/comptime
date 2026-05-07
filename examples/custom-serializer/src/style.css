@@ -1,0 +1,28 @@
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #160f1e;
+  color: #f4ecff;
+  font-family: ui-monospace, "SFMono-Regular", "SF Mono", Consolas, monospace;
+}
+
+main {
+  width: min(44rem, calc(100vw - 2rem));
+}
+
+p {
+  margin: 0 0 0.75rem;
+  color: #d9b4ff;
+}
+
+h1 {
+  margin: 0 0 1.5rem;
+  font-size: 2.25rem;
+}
+
+a {
+  color: #ffcf70;
+  overflow-wrap: anywhere;
+}
