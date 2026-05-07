@@ -18,6 +18,7 @@
     "email": "luke.edwards05@gmail.com",
     "url": "https://lukeed.com"
   },
+  "repository": "lukeed/comptime",
   "workspaces": [
     "examples/*"
   ],
