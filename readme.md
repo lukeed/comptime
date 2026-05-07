@@ -93,6 +93,25 @@ Defaults:
 
 When `env` is a string list, static `process.env.KEY` reads must be listed. Dynamic env reads are rejected unless `env` is `"all"`.
 
+## Common Errors
+
+These fail during transform:
+
+```ts
+comptime(1);
+// comptime() requires a single arrow function with no parameters
+```
+
+```ts
+comptime((value) => value);
+// comptime() requires a single arrow function with no parameters
+```
+
+```ts
+comptime(() => () => 1);
+// comptime returned a value that cannot be serialized
+```
+
 ## Limits
 
 This package does not add browser-side evaluation, disk caching, Webpack support, or esbuild standalone support.

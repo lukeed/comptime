@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { ComptimeTransformError, createCore } from "./shared";
+import { ComptimeTransformError, createCore, includeEvaluationCauseStack } from "./shared";
 import type { Evaluator, Serializer } from "./shared";
 
 class AssetRef {
@@ -153,6 +153,7 @@ describe("shared transform core", () => {
       "Error: fixture failed",
       "    at runFixture (comptime:/project/src/app.comptime-0.ts:4:9)",
     ].join("\n");
+    includeEvaluationCauseStack(cause);
     let evaluator: Evaluator = {
       async evaluate() {
         throw cause;

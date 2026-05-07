@@ -11,8 +11,8 @@ const RUNTIME_ERROR = "comptime() must be replaced by the Vite or Rolldown plugi
 const RUNTIME_VIRTUAL_ID = "\0comptime:runtime";
 const RUNTIME_VIRTUAL_MODULE = `export function comptime() { throw new Error(${JSON.stringify(RUNTIME_ERROR)}); }\n`;
 const EVALUATION_VIRTUAL_PREFIX = "\0comptime:";
-const VITE_EVALUATION_VIRTUAL_PREFIX = "comptime:";
 const EVALUATION_INDEX_MARKER = "?comptime=";
+const INCLUDE_CAUSE_STACK = "__comptime_include_cause_stack";
 const SUPPORTED_EXTENSIONS = new Set([
   ".js",
   ".jsx",
@@ -96,6 +96,15 @@ export class ComptimeTransformError extends Error {
     this.loc = locate(input.code, input.id, input.start);
     this.frame = createFrame(input.code, this.loc.line, this.loc.column);
     this.cause = input.cause;
+  }
+}
+
+export function includeEvaluationCauseStack(error: unknown): void {
+  if (isRecord(error)) {
+    Object.defineProperty(error, INCLUDE_CAUSE_STACK, {
+      configurable: true,
+      value: true,
+    });
   }
 }
 
@@ -248,8 +257,8 @@ export function createCore(input: CreateCoreOptions): ComptimeCore {
         );
         virtualModules.set(virtualId, moduleBody);
         // The module runner can import the internal \0 id, but Vite's TS transform filters skip
-        // \0 ids. Register a Vite-only alias that ends in the source extension so ssrLoadModule
-        // runs its normal TS/TSX transform before SSR parsing.
+        // \0 ids. Register a Vite-only alias based on the source file so ssrLoadModule runs its
+        // normal TS/TSX transform before SSR parsing.
         virtualModules.set(createViteEvaluationId(id, virtualId), moduleBody);
 
         let cacheKey = createCacheKey(moduleBody, envReads);
@@ -311,7 +320,7 @@ function normalizePatterns(value: string | string[] | undefined): string[] | und
 }
 
 function shouldScan(id: string, code: string, options: NormalizedOptions): boolean {
-  if (id.startsWith(EVALUATION_VIRTUAL_PREFIX) || id.startsWith(VITE_EVALUATION_VIRTUAL_PREFIX)) {
+  if (id.startsWith(EVALUATION_VIRTUAL_PREFIX) || id.includes(EVALUATION_INDEX_MARKER)) {
     return false;
   }
 
@@ -594,12 +603,7 @@ function createVirtualId(id: string, index: number): string {
 
 export function createViteEvaluationId(originId: string, virtualId: string): string {
   let index = readVirtualIndex(virtualId);
-  let cleanId = stripQuery(originId);
-  let extension = extname(cleanId);
-  if (extension === "") {
-    return `${VITE_EVALUATION_VIRTUAL_PREFIX}${cleanId}.comptime-${index}.js`;
-  }
-  return `${VITE_EVALUATION_VIRTUAL_PREFIX}${cleanId.slice(0, -extension.length)}.comptime-${index}${extension}`;
+  return `${stripQuery(originId)}${EVALUATION_INDEX_MARKER}${index}`;
 }
 
 function readVirtualIndex(virtualId: string): number {
@@ -1029,21 +1033,51 @@ function wrapEvaluationError(
 ): ComptimeTransformError {
   let message = messageFrom(error);
   if (message === `comptime evaluation timed out after ${timeout}ms`) {
-    return new ComptimeTransformError({
+    let wrapped = new ComptimeTransformError({
       message,
       id,
       code,
       start,
       cause: error,
     });
+    appendCauseStackIfNeeded(wrapped, error);
+    return wrapped;
   }
-  return new ComptimeTransformError({
+  let wrapped = new ComptimeTransformError({
     message: `comptime evaluation threw: ${message}`,
     id,
     code,
     start,
     cause: error,
   });
+  appendCauseStackIfNeeded(wrapped, error);
+  return wrapped;
+}
+
+function appendCauseStackIfNeeded(error: Error, cause: unknown): void {
+  if (!shouldIncludeCauseStack(cause)) {
+    return;
+  }
+  let causeStack = stackFrom(cause);
+  if (!causeStack) {
+    return;
+  }
+  let stack = typeof error.stack === "string" ? error.stack : `${error.name}: ${error.message}`;
+  error.stack = `${stack}\nCaused by:\n${causeStack}`;
+}
+
+function shouldIncludeCauseStack(error: unknown): boolean {
+  return isRecord(error) && error[INCLUDE_CAUSE_STACK] === true;
+}
+
+function stackFrom(error: unknown): string | undefined {
+  if (error instanceof Error && typeof error.stack === "string") {
+    return error.stack;
+  }
+  if (isRecord(error) && typeof error.stack === "string") {
+    return error.stack;
+  }
+  return undefined;
 }
 
 function messageFrom(error: unknown): string {

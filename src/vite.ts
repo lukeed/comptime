@@ -1,4 +1,4 @@
-import { createCore, createViteEvaluationId } from "./shared";
+import { createCore, createViteEvaluationId, includeEvaluationCauseStack } from "./shared";
 import { ModuleRunnerEvaluator, readDefaultExport } from "./evaluator";
 
 import type { Plugin, ViteDevServer } from "vite";
@@ -26,10 +26,17 @@ class ViteEvaluator implements Evaluator {
     if (server) {
       invalidateVirtualModule(server, virtualId);
       let viteVirtualId = createViteEvaluationId(origin, virtualId);
-      // Vite dev loads the alias so its normal TS/TSX transform runs; build fallback keeps using
-      // the internal \0 id that the module runner can import directly.
+      // Vite dev loads the source-file alias so its normal TS/TSX transform runs; build fallback
+      // keeps using the internal \0 id that the module runner can import directly.
       invalidateVirtualModule(server, viteVirtualId);
-      return readDefaultExport(await server.ssrLoadModule(viteVirtualId, { fixStacktrace: true }));
+      try {
+        return readDefaultExport(
+          await server.ssrLoadModule(viteVirtualId, { fixStacktrace: true }),
+        );
+      } catch (error) {
+        includeEvaluationCauseStack(error);
+        throw error;
+      }
     }
     return await this.fallback.evaluate(virtualId, body, origin);
   }

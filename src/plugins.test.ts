@@ -149,6 +149,35 @@ describe("plugin adapters", () => {
     }
   });
 
+  test("vite dev includes comptime cause stack on evaluation errors", async () => {
+    let root = createFixture("vite-dev-error-stack");
+    writeThrowingFixture(root);
+    let server = await createServer({
+      root,
+      appType: "custom",
+      logLevel: "silent",
+      plugins: [viteComptime()],
+      server: {
+        middlewareMode: true,
+      },
+    });
+    let thrown: unknown;
+
+    try {
+      await server.transformRequest("/src/app.ts");
+    } catch (error) {
+      thrown = error;
+    } finally {
+      await server.close();
+    }
+
+    expect(thrown).toBeInstanceOf(Error);
+    if (thrown instanceof Error) {
+      expect(thrown.message).toContain("comptime evaluation threw: fixture manifest missing");
+      expect(thrown.stack).toContain("readFixtureManifest");
+    }
+  });
+
   test("rolldown build resolves dynamic bare imports from the project", async () => {
     let root = createFixture("rolldown-dynamic-import");
     let entry = writeDynamicImportFixture(root);
@@ -283,6 +312,21 @@ function writeTypedAsyncFixture(root: string): string {
       '  let payload: Payload = { value: "ok" };',
       "  return payload.value;",
       "});",
+    ].join("\n"),
+  );
+  return entry;
+}
+
+function writeThrowingFixture(root: string): string {
+  let entry = resolve(root, "src/app.ts");
+  writeFileSync(
+    entry,
+    [
+      'import { comptime } from "comptime";',
+      "export let value = comptime(() => readFixtureManifest());",
+      "function readFixtureManifest(): string {",
+      '  throw new Error("fixture manifest missing");',
+      "}",
     ].join("\n"),
   );
   return entry;
