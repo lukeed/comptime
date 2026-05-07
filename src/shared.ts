@@ -560,10 +560,21 @@ function createVirtualModule(imports: string[], declarations: string[], body: st
   let parts: string[] = [];
   parts.push(...imports);
   parts.push(...declarations);
-  parts.push("export default await (async () => {");
+  let resultName = createVirtualResultName(parts, body);
+  parts.push(`let ${resultName} = await (async () => {`);
   parts.push(body);
   parts.push("})();");
+  parts.push(`export { ${resultName} as default };`);
   return `${parts.join("\n")}\n`;
+}
+
+function createVirtualResultName(parts: string[], body: string): string {
+  let source = `${parts.join("\n")}\n${body}`;
+  let name = "__comptime_result";
+  while (source.includes(name)) {
+    name = `${name}_`;
+  }
+  return name;
 }
 
 function createImportStatements(
