@@ -1,6 +1,6 @@
 # comptime
 
-> A Zig-inspired build-time evaluation primitive for TypeScript, exposed as Vite and Rolldown plugins.
+> A Zig-inspired build-time evaluation primitive, exposed as Vite and Rolldown plugins.
 
 ```ts
 import { comptime } from "comptime";
@@ -16,6 +16,8 @@ export const value = 55;
 ```
 
 If the plugin is not enabled, the runtime helper throws so missed transforms fail loudly.
+
+> View [more complex examples](/examples/)
 
 ## Install
 
@@ -110,6 +112,13 @@ comptime((value) => value);
 ```ts
 comptime(() => () => 1);
 // comptime returned a value that cannot be serialized
+```
+
+```ts
+comptime(() => {
+  throw new Error("something happened");
+});
+// build fails
 ```
 
 ## Limits

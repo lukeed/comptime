@@ -1,7 +1,17 @@
 {
   "name": "comptime",
   "version": "0.0.0",
-  "description": "A Zig-inspired build-time evaluation primitive for TypeScript.",
+  "description": "A Zig-inspired build-time evaluation primitive, exposed as Vite and Rolldown plugins.",
+  "keywords": [
+    "build-time",
+    "compile-time",
+    "comptime",
+    "evaluation",
+    "rolldown",
+    "rollup",
+    "vite",
+    "zig"
+  ],
   "license": "MIT",
   "author": {
     "name": "Luke Edwards",
