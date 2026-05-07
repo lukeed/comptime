@@ -10,6 +10,8 @@ import { ESModulesEvaluator, ModuleRunner } from "vite/module-runner";
 import type { ComptimeCore, Evaluator } from "./shared";
 
 const RESOLUTION_EXTENSIONS = [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"];
+const EVALUATION_VIRTUAL_PREFIX = "\0comptime:";
+const EVALUATION_INDEX_MARKER = "?comptime=";
 
 export type ModuleRunnerEvaluatorOptions = {
   core: Pick<ComptimeCore, "resolveId" | "load">;
@@ -121,11 +123,12 @@ export class ModuleRunnerEvaluator implements Evaluator {
       return { externalize: id, type: "builtin" };
     }
 
-    let hostResolved = await this.#host?.resolve(id, importer);
+    let hostImporter = toHostImporter(importer);
+    let hostResolved = await this.#host?.resolve(id, hostImporter);
     if (hostResolved) {
       if (hostResolved.external) {
         return {
-          externalize: resolveExternal(hostResolved.id, importer, this.#cwd),
+          externalize: resolveExternal(hostResolved.id, hostImporter, this.#cwd),
           type: "module",
         };
       }
@@ -183,11 +186,15 @@ export class ModuleRunnerEvaluator implements Evaluator {
   }
 
   #resolve(id: string, importer: string | undefined): string {
+    let evaluationPath = readEvaluationPath(id);
+    if (evaluationPath) {
+      return resolveExistingPath(evaluationPath);
+    }
     if (id.startsWith("file:")) {
       return new URL(id).pathname;
     }
 
-    let base = importer && !importer.startsWith("\0") ? dirname(importer) : this.#cwd;
+    let base = resolveImporterBase(importer, this.#cwd);
     let candidate = isAbsolute(id) ? id : resolve(base, id);
     return resolveExistingPath(candidate);
   }
@@ -201,7 +208,7 @@ export function readDefaultExport(module: unknown): unknown {
 }
 
 async function transformForModuleRunner(id: string, source: string, cwd: string): Promise<string> {
-  let filename = id.startsWith("\0") ? resolve(cwd, `${sanitizeVirtualId(id)}.ts`) : id;
+  let filename = createTransformFilename(id, cwd);
   let stripped = await transform(filename, source, {
     cwd,
     lang: inferLang(filename),
@@ -217,6 +224,15 @@ async function transformForModuleRunner(id: string, source: string, cwd: string)
     throw transformed.errors[0] ?? new Error("Rolldown moduleRunnerTransform failed");
   }
   return transformed.code;
+}
+
+function createTransformFilename(id: string, cwd: string): string {
+  let evaluationPath = readEvaluationPath(id);
+  if (evaluationPath) {
+    let extension = extname(evaluationPath) || ".ts";
+    return `${evaluationPath}.comptime${extension}`;
+  }
+  return id.startsWith("\0") ? resolve(cwd, `${sanitizeVirtualId(id)}.ts`) : id;
 }
 
 function parseInvokeRequest(payload: unknown): InvokeRequest {
@@ -262,8 +278,39 @@ function resolveExternal(id: string, importer: string | undefined, cwd: string):
   if (!isBareSpecifier(id)) {
     return id;
   }
-  let base = importer && !importer.startsWith("\0") ? dirname(importer) : cwd;
+  let base = resolveImporterBase(importer, cwd);
   return createRequire(resolve(base, "comptime-evaluator.js")).resolve(id);
+}
+
+function resolveImporterBase(importer: string | undefined, cwd: string): string {
+  if (!importer) {
+    return cwd;
+  }
+  let evaluationPath = readEvaluationPath(importer);
+  if (evaluationPath) {
+    return dirname(evaluationPath);
+  }
+  return importer.startsWith("\0") ? cwd : dirname(importer);
+}
+
+function toHostImporter(importer: string | undefined): string | undefined {
+  if (!importer) {
+    return undefined;
+  }
+  return readEvaluationPath(importer) ?? importer;
+}
+
+function readEvaluationPath(id: string): string | undefined {
+  let prefix = id.indexOf(EVALUATION_VIRTUAL_PREFIX);
+  if (prefix === -1) {
+    return undefined;
+  }
+  return stripEvaluationQuery(id.slice(prefix + EVALUATION_VIRTUAL_PREFIX.length));
+}
+
+function stripEvaluationQuery(id: string): string {
+  let marker = id.lastIndexOf(EVALUATION_INDEX_MARKER);
+  return marker === -1 ? id : id.slice(0, marker);
 }
 
 function inferLang(id: string): "js" | "jsx" | "ts" | "tsx" {

@@ -55,6 +55,7 @@ export type TransformResult = {
 
 export type TransformContext = {
   addWatchFile?(id: string): void;
+  resolve?(id: string, importer: string): Promise<string | null>;
 };
 
 export type ComptimeCore = {
@@ -247,10 +248,11 @@ export function createCore(input: CreateCoreOptions): ComptimeCore {
         }
 
         let virtualId = createVirtualId(id, call.index);
+        let body = await resolveDynamicImports(fnInfo, code, id, context);
         let moduleBody = createVirtualModule(
           capturedImports.statements,
           capturedDeclarations,
-          fnInfo.body,
+          body,
         );
         virtualModules.set(virtualId, moduleBody);
         // The module runner can import the internal \0 id, but Vite's TS transform filters skip
@@ -534,7 +536,15 @@ function getFunctionInfo(
   fn: AstNode,
   code: string,
   id: string,
-): { valid: true; body: string; bodyNode: AstNode } | { valid: false } {
+):
+  | {
+      valid: true;
+      body: string;
+      bodyNode: AstNode;
+      bodyPrefixLength: number;
+      bodySourceOffset: number;
+    }
+  | { valid: false } {
   if (fn.type !== "ArrowFunctionExpression" && fn.type !== "FunctionExpression") {
     return { valid: false };
   }
@@ -564,6 +574,8 @@ function getFunctionInfo(
       valid: true,
       body: code.slice(start + 1, end - 1),
       bodyNode,
+      bodyPrefixLength: 0,
+      bodySourceOffset: start + 1,
     };
   }
 
@@ -571,7 +583,80 @@ function getFunctionInfo(
     valid: true,
     body: `return ${code.slice(start, end)};`,
     bodyNode,
+    bodyPrefixLength: "return ".length,
+    bodySourceOffset: start,
   };
+}
+
+async function resolveDynamicImports(
+  fnInfo: {
+    body: string;
+    bodyNode: AstNode;
+    bodyPrefixLength: number;
+    bodySourceOffset: number;
+  },
+  code: string,
+  id: string,
+  context: TransformContext | undefined,
+): Promise<string> {
+  if (!context?.resolve) {
+    return fnInfo.body;
+  }
+
+  let imports = collectDynamicImports(fnInfo.bodyNode, fnInfo);
+  let edited: MagicString | undefined;
+  for (let item of imports) {
+    let resolved = await context.resolve(item.specifier, id);
+    if (!resolved || resolved === item.specifier) {
+      continue;
+    }
+    edited ??= new MagicString(fnInfo.body);
+    edited.overwrite(item.start, item.end, JSON.stringify(resolved));
+  }
+  return edited?.toString() ?? fnInfo.body;
+}
+
+type DynamicImport = {
+  specifier: string;
+  start: number;
+  end: number;
+};
+
+function collectDynamicImports(
+  root: AstNode,
+  fnInfo: { bodyPrefixLength: number; bodySourceOffset: number },
+): DynamicImport[] {
+  let imports: DynamicImport[] = [];
+  visitChildren(root, (child) => collectDynamicImportsFromNode(child, fnInfo, imports));
+  return imports;
+}
+
+function collectDynamicImportsFromNode(
+  value: unknown,
+  fnInfo: { bodyPrefixLength: number; bodySourceOffset: number },
+  imports: DynamicImport[],
+): void {
+  if (!isAstNode(value)) {
+    return;
+  }
+
+  if (value.type === "ImportExpression") {
+    let source = readNode(value, "source");
+    let start = source ? readOffset(source, "start") : undefined;
+    let end = source ? readOffset(source, "end") : undefined;
+    if (source?.type === "Literal" && start !== undefined && end !== undefined) {
+      let specifier = source.value;
+      if (typeof specifier === "string") {
+        imports.push({
+          specifier,
+          start: start - fnInfo.bodySourceOffset + fnInfo.bodyPrefixLength,
+          end: end - fnInfo.bodySourceOffset + fnInfo.bodyPrefixLength,
+        });
+      }
+    }
+  }
+
+  visitChildren(value, (child) => collectDynamicImportsFromNode(child, fnInfo, imports));
 }
 
 function createVirtualModule(imports: string[], declarations: string[], body: string): string {
