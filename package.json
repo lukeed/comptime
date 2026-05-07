@@ -43,8 +43,8 @@
     "magic-string": "^0.30.19"
   },
   "devDependencies": {
-    "@types/bun": "^1.3.0",
-    "oxfmt": "^0.47.0",
+    "@types/bun": "1.3.13",
+    "oxfmt": "^0.48.0",
     "rolldown": "^1.0.0",
     "typescript": "^6.0.0",
     "vite": "^8.0.0"
