@@ -23,11 +23,6 @@ export type HostResolved = {
   external: boolean;
 };
 
-type FetchModuleOptions = {
-  cached?: boolean;
-  startOffset?: number;
-};
-
 type FetchModuleResult =
   | { cache: true }
   | { externalize: string; type: "module" | "commonjs" | "builtin" | "network" }
@@ -113,12 +108,12 @@ export class ModuleRunnerEvaluator implements Evaluator {
   async #fetchModule(args: unknown[]): Promise<FetchModuleResult> {
     let id = typeof args[0] === "string" ? args[0] : undefined;
     let importer = typeof args[1] === "string" ? args[1] : undefined;
-    let options = isRecord(args[2]) ? readFetchModuleOptions(args[2]) : {};
+    let cached = isRecord(args[2]) && args[2].cached === true;
 
     if (id === undefined) {
       throw new Error("ModuleRunner fetchModule expected a string id");
     }
-    if (options.cached) {
+    if (cached) {
       return { cache: true };
     }
     if (isBuiltin(id)) {
@@ -240,14 +235,6 @@ function parseInvokeRequest(payload: unknown): InvokeRequest {
   }
   let args = data.data;
   return { name, data: Array.isArray(args) ? args : [] };
-}
-
-function readFetchModuleOptions(value: Record<string, unknown>): FetchModuleOptions {
-  let options: FetchModuleOptions = { cached: value.cached === true };
-  if (typeof value.startOffset === "number") {
-    options.startOffset = value.startOffset;
-  }
-  return options;
 }
 
 async function resolveExistingPath(path: string): Promise<string> {
