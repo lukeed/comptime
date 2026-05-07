@@ -8,12 +8,12 @@ import type { ComptimeOptions, Evaluator } from "./shared";
 export type { Serializer } from "./shared";
 
 type ViteEvaluatorOptions = {
-  fallback: Evaluator;
+  fallback: ModuleRunnerEvaluator;
   getServer(): ViteDevServer | undefined;
 };
 
 class ViteEvaluator implements Evaluator {
-  readonly #fallback: Evaluator;
+  readonly #fallback: ModuleRunnerEvaluator;
   readonly #getServer: () => ViteDevServer | undefined;
 
   constructor(options: ViteEvaluatorOptions) {
@@ -38,11 +38,11 @@ class ViteEvaluator implements Evaluator {
         throw error;
       }
     }
-    return await this.#fallback.evaluate(virtualId, body, origin);
+    return await this.#fallback.evaluate(virtualId);
   }
 
   setHost(host: EvaluatorHost | undefined): void {
-    setEvaluatorHost(this.#fallback, host);
+    this.#fallback.setHost(host);
   }
 
   dispose(): Promise<void> {
@@ -52,7 +52,7 @@ class ViteEvaluator implements Evaluator {
 
 export function comptime(options?: ComptimeOptions): Plugin {
   let server: ViteDevServer | undefined;
-  let evaluator: Evaluator | undefined;
+  let evaluator: ViteEvaluator | undefined;
   let core = options != null ? createCore({ getEvaluator, options }) : createCore({ getEvaluator });
 
   function getEvaluator(): Evaluator {
@@ -81,7 +81,7 @@ export function comptime(options?: ComptimeOptions): Plugin {
       return core.load(id);
     },
     async transform(code, id) {
-      setEvaluatorHost(evaluator, {
+      evaluator?.setHost({
         resolve: async (source, importer) => {
           let resolved = await this.resolve(source, importer);
           if (!resolved) {
@@ -103,7 +103,7 @@ export function comptime(options?: ComptimeOptions): Plugin {
         });
         return result ?? undefined;
       } finally {
-        setEvaluatorHost(evaluator, undefined);
+        evaluator?.setHost(undefined);
       }
     },
     handleHotUpdate(context) {
@@ -128,11 +128,5 @@ function invalidateVirtualModule(server: ViteDevServer, id: string): void {
   let ssrModule = ssrGraph?.getModuleById(id);
   if (ssrModule) {
     ssrGraph?.invalidateModule(ssrModule);
-  }
-}
-
-function setEvaluatorHost(evaluator: Evaluator | undefined, host: EvaluatorHost | undefined): void {
-  if (evaluator && "setHost" in evaluator && typeof evaluator.setHost === "function") {
-    evaluator.setHost(host);
   }
 }
